@@ -9,24 +9,33 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
     private override init() { super.init() }
 
-    func open(on screen: NSScreen? = nil) {
+    func open(on screen: NSScreen? = nil, section: SettingsSection? = nil) {
         if let existing = window, existing.isVisible {
             existing.orderFrontRegardless()
             NSApp.activate(ignoringOtherApps: true)
             existing.makeKeyAndOrderFront(nil)
+            if let section {
+                NotificationCenter.default.post(
+                    name: NSNotification.Name("switchToSettingsTab"),
+                    object: section
+                )
+            }
             return
         }
 
-        let hostingView = NSHostingView(rootView: PreferencesView())
+        let hostingView = NSHostingView(rootView: PreferencesView(initialSection: section ?? .general))
 
         let win = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 680, height: 560),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            contentRect: NSRect(x: 0, y: 0, width: 700, height: 640),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         win.contentView = hostingView
         win.title = "Settings"
+        // Shottr-style: the tab row sits directly under the title, in the same chrome.
+        win.titlebarAppearsTransparent = true
+        win.minSize = NSSize(width: 640, height: 520)
         win.isReleasedWhenClosed = false
         win.delegate = self
         win.collectionBehavior = [.transient, .moveToActiveSpace]

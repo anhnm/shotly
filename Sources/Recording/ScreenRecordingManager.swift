@@ -153,7 +153,7 @@ final class ScreenRecordingManager: NSObject {
 
         let dir = AppPreferences.saveDirectory
         let stamp = Int(Date().timeIntervalSince1970 * 1000)
-        let path = "\(dir)/bettershot_\(stamp).mp4"
+        let path = "\(dir)/shotly_\(stamp).mp4"
         let url = URL(fileURLWithPath: path)
         outputURL = url
 
@@ -187,6 +187,10 @@ final class ScreenRecordingManager: NSObject {
         state = .recording
         elapsedSeconds = 0
         startTimer()
+        AnalyticsService.track(.recordingStarted, properties: [
+            "audio": captureAudio ? "true" : "false",
+            "fps": "\(AppPreferences.recordingFPS)",
+        ])
 
         return true
     }
@@ -217,6 +221,9 @@ final class ScreenRecordingManager: NSObject {
 
         let url = outputURL
         outputURL = nil
+        if url != nil {
+            AnalyticsService.track(.recordingCompleted)
+        }
         return url
     }
 

@@ -137,14 +137,14 @@ enum RedactionImageProcessor {
         }
         let smallWidth = max(1, pixelWidth / blockSize)
         let smallHeight = max(1, pixelHeight / blockSize)
-        let colorSpace = croppedImage.colorSpace ?? CGColorSpaceCreateDeviceRGB()
-        let bitmapInfo = croppedImage.bitmapInfo
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue)
 
         guard let downsampleContext = CGContext(
             data: nil,
             width: smallWidth,
             height: smallHeight,
-            bitsPerComponent: croppedImage.bitsPerComponent,
+            bitsPerComponent: 8,
             bytesPerRow: 0,
             space: colorSpace,
             bitmapInfo: bitmapInfo.rawValue
@@ -232,11 +232,6 @@ enum RedactionImageProcessor {
 }
 
 private extension NSImage {
-    func bestCGImage() -> CGImage? {
-        var proposedRect = CGRect(origin: .zero, size: size)
-        return cgImage(forProposedRect: &proposedRect, context: nil, hints: nil)
-    }
-
     var pixelCost: Int {
         guard let image = bestCGImage() else { return 0 }
         return image.bytesPerRow * image.height

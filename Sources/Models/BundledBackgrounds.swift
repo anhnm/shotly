@@ -38,10 +38,13 @@ enum BundledBackgrounds {
     }
 
     static let macAssets: [ImageAsset] = [
+        ImageAsset(id: "mac-1", filename: "mac-asset-1.jpg"),
+        ImageAsset(id: "mac-2", filename: "mac-asset-2.jpg"),
         ImageAsset(id: "mac-3", filename: "mac-asset-3.jpg"),
+        ImageAsset(id: "mac-4", filename: "mac-asset-4.jpg"),
         ImageAsset(id: "mac-5", filename: "mac-asset-5.jpg"),
-        ImageAsset(id: "mac-6", filename: "mac-asset-6.jpeg"),
-        ImageAsset(id: "mac-7", filename: "mac-asset-7.png"),
+        ImageAsset(id: "mac-6", filename: "mac-asset-6.jpg"),
+        ImageAsset(id: "mac-7", filename: "mac-asset-7.jpg"),
         ImageAsset(id: "mac-8", filename: "mac-asset-8.jpg"),
         ImageAsset(id: "mac-9", filename: "mac-asset-9.jpg"),
         ImageAsset(id: "mac-10", filename: "mac-asset-10.jpg"),

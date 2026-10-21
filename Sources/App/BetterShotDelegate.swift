@@ -9,11 +9,18 @@ final class BetterShotDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
 
         MenuBarPopoverController.shared.setup()
+        AppUpdater.shared.startAutomaticChecks()
+        ScreenCapture.warmUpTextRecognition()
+        AnalyticsService.trackAppLaunch()
 
-        Task {
-            await AppUpdater.shared.checkForUpdatesQuietly()
+        if !AppPreferences.hasCompletedOnboarding {
+            OnboardingWindowController.shared.open()
+        } else {
+            initializeShortcutService()
         }
+    }
 
+    func initializeShortcutService() {
         if ShortcutService.hasAccessibilityPermission {
             ShortcutService.shared.registerAll()
 
@@ -31,9 +38,18 @@ final class BetterShotDelegate: NSObject, NSApplicationDelegate {
         ShortcutService.shared.unregisterAll()
     }
 
+    /// Opens images passed to the app (Finder "Open With", `open -a Shotly file.png`) in the editor.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls where NSImage(contentsOf: url) != nil {
+            EditorWindowController.shared.open(url: url)
+        }
+    }
+
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        // Shotly lives in the menu bar, so opening it again from Finder, Launchpad or
+        // Spotlight would otherwise do nothing visible. Show Settings instead.
         if !flag {
-            NSApp.activate(ignoringOtherApps: true)
+            SettingsWindowController.shared.open()
         }
         return true
     }
@@ -57,7 +73,7 @@ final class BetterShotDelegate: NSObject, NSApplicationDelegate {
     private static func promptRestart() {
         let alert = NSAlert()
         alert.messageText = "Restart Required"
-        alert.informativeText = "BetterShot needs to restart to activate keyboard shortcut overrides. Restart now?"
+        alert.informativeText = "Shotly needs to restart to activate keyboard shortcut overrides. Restart now?"
         alert.alertStyle = .informational
         alert.addButton(withTitle: "Restart")
         alert.addButton(withTitle: "Later")

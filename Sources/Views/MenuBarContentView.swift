@@ -73,6 +73,17 @@ struct MenuBarContentView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
 
+            if case .available(let manifest) = AppUpdater.shared.state {
+                TrayDivider()
+
+                TrayFullWidthButton(title: "Update to Shotly \(manifest.version)", icon: "arrow.down.circle") {
+                    dismissPopover()
+                    UpdateWindowController.shared.show()
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+            }
+
             if PinnedScreenshotController.shared.hasPinnedWindows {
                 TrayDivider()
 
@@ -83,6 +94,16 @@ struct MenuBarContentView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
             }
+
+            TrayDivider()
+
+            TrayFullWidthButton(title: "Show Welcome Guide", icon: "sparkles") {
+                dismissPopover()
+                OnboardingWindowController.shared.open()
+            }
+            .padding(.horizontal, 10)
+            .padding(.top, 4)
+            .padding(.bottom, 2)
 
             TrayDivider()
 
@@ -105,15 +126,15 @@ struct MenuBarContentView: View {
         ]
 
         return LazyVGrid(columns: columns, spacing: 6) {
-            TrayGridButton(title: "Region", icon: "rectangle.dashed", shortcut: "\u{2318}4") {
+            TrayGridButton(title: "Region", icon: "rectangle.dashed", shortcut: shortcutLabel(for: .region, default: .defaultRegion)) {
                 dismissAndRun(.region)
             }
 
-            TrayGridButton(title: "Screen", icon: "desktopcomputer", shortcut: "\u{2318}3") {
+            TrayGridButton(title: "Screen", icon: "desktopcomputer", shortcut: shortcutLabel(for: .fullscreen, default: .defaultFullscreen)) {
                 dismissAndRun(.fullscreen)
             }
 
-            TrayGridButton(title: "Window", icon: "macwindow") {
+            TrayGridButton(title: "Window", icon: "macwindow", shortcut: shortcutLabel(for: .window, default: .defaultWindow)) {
                 dismissAndRun(.window)
             }
 
@@ -123,22 +144,28 @@ struct MenuBarContentView: View {
 
             TrayGridMenu(title: "Record", icon: "record.circle", menuItems: [
                 TrayMenuItem(title: "Full Screen", icon: "desktopcomputer") {
-                    nonisolated(unsafe) let screen = originScreen
+                    let screen = originScreen
                     dismissPopover()
-                    Task.detached {
-                        try? await Task.sleep(nanoseconds: 200_000_000)
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(150))
                         await startRecording(mode: .fullScreen, on: screen)
                     }
                 },
                 TrayMenuItem(title: "Area", icon: "rectangle.dashed") {
-                    nonisolated(unsafe) let screen = originScreen
+                    let screen = originScreen
                     dismissPopover()
-                    Task.detached {
-                        try? await Task.sleep(nanoseconds: 200_000_000)
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(150))
                         await startRecording(mode: .area, on: screen)
                     }
                 },
             ])
+
+            TrayGridButton(title: "Editor", icon: "square.and.pencil") {
+                let screen = originScreen
+                dismissPopover()
+                EditorWindowController.shared.open(url: nil, on: screen)
+            }
         }
     }
 
@@ -159,7 +186,7 @@ struct MenuBarContentView: View {
         ]
 
         return LazyVGrid(columns: columns, spacing: 6) {
-            TrayGridButton(title: "OCR", icon: "doc.text.viewfinder", shortcut: "\u{2318}O") {
+            TrayGridButton(title: "OCR", icon: "doc.text.viewfinder", shortcut: shortcutLabel(for: .ocr, default: .defaultOCR)) {
                 dismissAndRun(.ocr)
             }
 
@@ -190,17 +217,9 @@ struct MenuBarContentView: View {
 
     private var versionLabel: some View {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
-        return HStack(spacing: 4) {
-            Text("Version \(version)")
-                .font(.system(size: 10))
-                .foregroundStyle(.quaternary)
-
-            if AppUpdater.shared.latestAvailableVersion != nil {
-                Circle()
-                    .fill(.blue)
-                    .frame(width: 6, height: 6)
-            }
-        }
+        return Text("Version \(version)")
+            .font(.system(size: 10))
+            .foregroundStyle(.quaternary)
     }
 
     // MARK: - Actions
@@ -209,11 +228,19 @@ struct MenuBarContentView: View {
         MenuBarPopoverController.shared.originScreen
     }
 
+    private func shortcutLabel(
+        for action: ShortcutService.Action,
+        default defaultShortcut: ShortcutService.Shortcut
+    ) -> String? {
+        let shortcut = ShortcutService.shared.loadShortcut(for: action) ?? defaultShortcut
+        return shortcut.enabled ? shortcut.displayString : nil
+    }
+
     private func dismissAndRun(_ action: ShortcutService.Action) {
-        nonisolated(unsafe) let screen = originScreen
+        let screen = originScreen
         dismissPopover()
-        Task.detached {
-            try? await Task.sleep(nanoseconds: 200_000_000)
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(150))
             await CaptureOrchestrator.shared.performCapture(action, on: screen)
         }
     }

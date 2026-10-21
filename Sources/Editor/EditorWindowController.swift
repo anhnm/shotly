@@ -11,22 +11,30 @@ final class EditorWindowController {
 
     private init() {}
 
-    func open(url: URL, on screen: NSScreen? = nil) {
+    func open(url: URL? = nil, collage: CollageState? = nil, on screen: NSScreen? = nil) {
         let urlHolder = CurrentURL(url: url)
 
         let hostingView = NSHostingView(rootView:
-            EditorWindowView(urlHolder: urlHolder)
-                .frame(minWidth: 800, minHeight: 550)
+            EditorWindowView(urlHolder: urlHolder, initialCollage: collage)
+                .frame(minWidth: 1240, minHeight: 550)
         )
 
         let win = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1100, height: 760),
-            styleMask: [.titled, .closable, .resizable, .miniaturizable],
+            contentRect: NSRect(x: 0, y: 0, width: 1320, height: 800),
+            styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         win.contentView = hostingView
-        win.title = url.deletingPathExtension().lastPathComponent
+        win.title = "Shotly Editor"
+        win.titleVisibility = .hidden
+        // The editor draws its own flat title bar (see EditorTitleBar). An empty unified
+        // toolbar only makes the title bar tall enough to center the traffic lights in it.
+        win.titlebarAppearsTransparent = true
+        let toolbar = NSToolbar(identifier: "ShotlyEditorTitleBar")
+        toolbar.showsBaselineSeparator = false
+        win.toolbar = toolbar
+        win.toolbarStyle = .unified
         win.isReleasedWhenClosed = false
         win.delegate = EditorWindowDelegate.shared
         win.collectionBehavior = [.transient, .moveToActiveSpace]
@@ -95,9 +103,9 @@ final class EditorWindowController {
 @MainActor
 @Observable
 final class CurrentURL {
-    var url: URL
+    var url: URL?
 
-    init(url: URL) {
+    init(url: URL?) {
         self.url = url
     }
 }

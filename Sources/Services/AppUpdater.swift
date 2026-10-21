@@ -1,6 +1,29 @@
-import Foundation
 import AppKit
+import CryptoKit
+import Foundation
+import OSLog
 
+private let updateLog = Logger(subsystem: "com.shotly.app", category: "update")
+
+/// Description of a published release, uploaded by `release.sh` as `version.json`
+/// next to the DMG on GitHub Releases.
+struct UpdateManifest: Decodable, Equatable, Sendable {
+    let version: String
+    let build: Int
+    let minimumOS: String?
+    let dmgUrl: URL
+    let sha256: String
+    let size: Int?
+    let notes: [String]
+    /// Builds older than this must update before the app can be used.
+    let minBuild: Int?
+}
+
+/// Checks GitHub Releases for a newer Shotly and installs it in place.
+///
+/// The app reads `https://github.com/<repo>/releases/latest/download/version.json`,
+/// a plain download URL with no API rate limit. The repo comes from the
+/// `ShotlyUpdateRepo` Info.plist key.
 @MainActor
 @Observable
 final class AppUpdater {
@@ -9,322 +32,341 @@ final class AppUpdater {
     enum State: Equatable {
         case idle
         case checking
-        case available(version: String, url: URL)
-        case downloading(progress: Double)
-        case readyToInstall(version: String, dmgPath: URL)
-        case installing
         case upToDate
+        case available(UpdateManifest)
+        case downloading(UpdateManifest, progress: Double)
+        case installing(UpdateManifest)
         case failed(String)
     }
 
     private(set) var state: State = .idle
+    private(set) var lastChecked: Date?
 
-    private let owner = "KartikLabhshetwar"
-    private let repo = "better-shot"
+    private static let skippedVersionKey = "bs_skippedUpdateVersion"
+    static let automaticChecksKey = "bs_autoCheckUpdates"
+    private static let checkInterval: Duration = .seconds(6 * 60 * 60)
 
-    private var currentVersion: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
-    }
-
-    private var downloadTask: URLSessionDownloadTask?
-
-    private(set) var latestAvailableVersion: String?
+    private var periodicCheckTask: Task<Void, Never>?
+    private var installTask: Task<Void, Never>?
 
     private init() {}
 
-    func checkForUpdatesQuietly() async {
-        let urlString = "https://api.github.com/repos/\(owner)/\(repo)/releases/latest"
-        guard let url = URL(string: urlString) else { return }
+    // MARK: - Versions
 
-        var request = URLRequest(url: url)
-        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        request.timeoutInterval = 15
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode == 200,
-                  let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let tagName = json["tag_name"] as? String else { return }
-
-            let latestVersion = tagName.hasPrefix("v") ? String(tagName.dropFirst()) : tagName
-
-            if isNewer(latestVersion, than: currentVersion) {
-                latestAvailableVersion = latestVersion
-                let assets = json["assets"] as? [[String: Any]] ?? []
-                let arch = Self.currentArchitecture
-                let dmgAsset = assets.first { ($0["name"] as? String)?.contains(arch) == true && ($0["name"] as? String)?.hasSuffix(".dmg") == true }
-                    ?? assets.first { ($0["name"] as? String)?.hasSuffix(".dmg") == true }
-
-                if let assetURLString = dmgAsset?["browser_download_url"] as? String,
-                   let assetURL = URL(string: assetURLString) {
-                    state = .available(version: latestVersion, url: assetURL)
-                    ToastWindow.shared.show(
-                        title: "Update Available",
-                        message: "Version \(latestVersion) is available",
-                        systemIcon: "arrow.down.circle"
-                    )
-                }
-            }
-        } catch {}
+    var currentVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
     }
 
-    func checkForUpdates() async {
-        state = .checking
+    var currentBuild: Int {
+        Int(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "") ?? 0
+    }
 
-        let urlString = "https://api.github.com/repos/\(owner)/\(repo)/releases/latest"
-        guard let url = URL(string: urlString) else {
-            state = .failed("Invalid URL")
+    private static var repository: String? {
+        let value = (Bundle.main.object(forInfoDictionaryKey: "ShotlyUpdateRepo") as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let value, !value.isEmpty, !value.hasPrefix("$(") else { return nil }
+        return value
+    }
+
+    private static var manifestURL: URL? {
+        repository.flatMap { URL(string: "https://github.com/\($0)/releases/latest/download/version.json") }
+    }
+
+    static var automaticChecksEnabled: Bool {
+        UserDefaults.standard.object(forKey: automaticChecksKey) as? Bool ?? true
+    }
+
+    /// The available update must be installed before Shotly can be used.
+    func isRequired(_ manifest: UpdateManifest) -> Bool {
+        currentBuild < (manifest.minBuild ?? 0)
+    }
+
+    // MARK: - Checking
+
+    /// Checks shortly after launch and then every few hours while the app runs.
+    func startAutomaticChecks() {
+        periodicCheckTask?.cancel()
+        periodicCheckTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(5))
+            while !Task.isCancelled {
+                if Self.automaticChecksEnabled {
+                    await self?.checkForUpdates(userInitiated: false)
+                }
+                try? await Task.sleep(for: Self.checkInterval)
+            }
+        }
+    }
+
+    /// `userInitiated` checks always show the result; background checks only
+    /// speak up when there is an update the user has not skipped.
+    func checkForUpdates(userInitiated: Bool) async {
+        switch state {
+        case .checking, .downloading, .installing: return
+        default: break
+        }
+        guard let url = Self.manifestURL else {
+            if userInitiated { state = .failed("Updates are not configured for this build.") }
             return
         }
 
-        var request = URLRequest(url: url)
-        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        request.timeoutInterval = 15
-
+        state = .checking
         do {
+            var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 20)
+            request.setValue("Shotly/\(currentVersion)", forHTTPHeaderField: "User-Agent")
             let (data, response) = try await URLSession.shared.data(for: request)
+            lastChecked = Date()
 
-            guard let httpResponse = response as? HTTPURLResponse else {
-                state = .failed("Invalid response")
-                return
+            guard let http = response as? HTTPURLResponse else {
+                throw UpdateError.message("The update server sent an invalid response.")
             }
-
-            if httpResponse.statusCode == 404 {
+            // No release published yet.
+            if http.statusCode == 404 {
                 state = .upToDate
                 return
             }
-
-            guard httpResponse.statusCode == 200 else {
-                state = .failed("Server returned \(httpResponse.statusCode)")
-                return
+            guard http.statusCode == 200 else {
+                throw UpdateError.message("The update server returned an error (\(http.statusCode)).")
             }
 
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let tagName = json["tag_name"] as? String else {
-                state = .failed("Could not parse response")
-                return
-            }
-
-            let latestVersion = tagName.hasPrefix("v") ? String(tagName.dropFirst()) : tagName
-
-            if isNewer(latestVersion, than: currentVersion) {
-                let assets = json["assets"] as? [[String: Any]] ?? []
-                let arch = Self.currentArchitecture
-                let dmgAsset = assets.first { ($0["name"] as? String)?.contains(arch) == true && ($0["name"] as? String)?.hasSuffix(".dmg") == true }
-                    ?? assets.first { ($0["name"] as? String)?.hasSuffix(".dmg") == true }
-
-                if let assetURLString = dmgAsset?["browser_download_url"] as? String,
-                   let assetURL = URL(string: assetURLString) {
-                    state = .available(version: latestVersion, url: assetURL)
-                } else {
-                    state = .failed("No .dmg asset found in latest release")
-                }
-            } else {
+            let manifest = try JSONDecoder().decode(UpdateManifest.self, from: data)
+            guard manifest.build > currentBuild else {
                 state = .upToDate
+                return
+            }
+            if let minimumOS = manifest.minimumOS, !Self.systemSatisfies(minimumOS) {
+                state = userInitiated
+                    ? .failed("Shotly \(manifest.version) needs macOS \(minimumOS) or later.")
+                    : .upToDate
+                return
+            }
+
+            state = .available(manifest)
+            updateLog.notice("Update available: \(manifest.version, privacy: .public) (build \(manifest.build))")
+
+            let skipped = UserDefaults.standard.string(forKey: Self.skippedVersionKey)
+            if userInitiated || isRequired(manifest) || skipped != manifest.version {
+                UpdateWindowController.shared.show()
             }
         } catch {
-            state = .failed(error.localizedDescription)
+            updateLog.error("Update check failed: \(error.localizedDescription, privacy: .public)")
+            state = userInitiated ? .failed(Self.describe(error)) : .idle
         }
     }
 
-    func downloadAndInstall(version: String, url: URL) async {
-        state = .downloading(progress: 0)
+    func skip(_ manifest: UpdateManifest) {
+        UserDefaults.standard.set(manifest.version, forKey: Self.skippedVersionKey)
+    }
 
-        let delegate = DownloadProgressDelegate { [weak self] progress in
+    // MARK: - Installing
+
+    func install(_ manifest: UpdateManifest) {
+        guard installTask == nil else { return }
+        installTask = Task { [weak self] in
+            await self?.performInstall(manifest)
+            self?.installTask = nil
+        }
+    }
+
+    func cancelInstall() {
+        guard case .downloading(let manifest, _) = state else { return }
+        installTask?.cancel()
+        installTask = nil
+        state = .available(manifest)
+    }
+
+    private func performInstall(_ manifest: UpdateManifest) async {
+        let appURL = Bundle.main.bundleURL
+        if let problem = Self.installLocationProblem(for: appURL) {
+            state = .failed(problem)
+            return
+        }
+
+        state = .downloading(manifest, progress: 0)
+        do {
+            let dmg = try await download(manifest)
+            try Task.checkCancellation()
+
+            state = .installing(manifest)
+            try await Self.verify(dmg, sha256: manifest.sha256)
+            try await Self.replaceApp(at: appURL, withAppFrom: dmg, expectedBuild: manifest.build)
+            try? FileManager.default.removeItem(at: dmg.deletingLastPathComponent())
+
+            updateLog.notice("Installed \(manifest.version, privacy: .public); relaunching")
+            UserDefaults.standard.removeObject(forKey: Self.skippedVersionKey)
+            Self.relaunch(appURL)
+        } catch is CancellationError {
+            state = .available(manifest)
+        } catch {
+            updateLog.error("Install failed: \(error.localizedDescription, privacy: .public)")
+            state = .failed(Self.describe(error))
+        }
+    }
+
+    private func download(_ manifest: UpdateManifest) async throws -> URL {
+        let progress = DownloadProgressReporter { [weak self] fraction in
             Task { @MainActor in
-                self?.state = .downloading(progress: progress)
+                guard let self, case .downloading(let current, _) = self.state else { return }
+                self.state = .downloading(current, progress: fraction)
             }
         }
-
-        let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
-        let downloadTask = session.downloadTask(with: url)
-        self.downloadTask = downloadTask
-
-        do {
-            let localURL: URL = try await withCheckedThrowingContinuation { continuation in
-                delegate.completion = { result in
-                    continuation.resume(with: result)
-                }
-                downloadTask.resume()
-            }
-
-            let dmgDir = FileManager.default.temporaryDirectory.appendingPathComponent("BetterShotUpdate")
-            try? FileManager.default.removeItem(at: dmgDir)
-            try FileManager.default.createDirectory(at: dmgDir, withIntermediateDirectories: true)
-
-            let dmgPath = dmgDir.appendingPathComponent("BetterShot-\(version).dmg")
-            if FileManager.default.fileExists(atPath: dmgPath.path) {
-                try FileManager.default.removeItem(at: dmgPath)
-            }
-            try FileManager.default.moveItem(at: localURL, to: dmgPath)
-
-            state = .readyToInstall(version: version, dmgPath: dmgPath)
-        } catch {
-            state = .failed("Download failed: \(error.localizedDescription)")
+        let (tempURL, response) = try await URLSession.shared.download(from: manifest.dmgUrl, delegate: progress)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+            throw UpdateError.message("The update could not be downloaded.")
         }
+
+        let folder = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ShotlyUpdate-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let dmg = folder.appendingPathComponent("Shotly-\(manifest.version).dmg")
+        try FileManager.default.moveItem(at: tempURL, to: dmg)
+        return dmg
     }
 
-    func installUpdate(dmgPath: URL) async {
-        state = .installing
+    // MARK: - Helpers (run off the main actor)
 
-        do {
-            let mountPoint = try await mountDMG(at: dmgPath)
-            defer {
-                Task.detached {
-                    let process = Process()
-                    process.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
-                    process.arguments = ["detach", mountPoint, "-quiet"]
-                    try? process.run()
-                    process.waitUntilExit()
-                    try? FileManager.default.removeItem(at: dmgPath.deletingLastPathComponent())
-                }
+    private nonisolated static func verify(_ file: URL, sha256 expected: String) async throws {
+        try await Task.detached(priority: .userInitiated) {
+            let handle = try FileHandle(forReadingFrom: file)
+            defer { try? handle.close() }
+            var hasher = SHA256()
+            while let chunk = try handle.read(upToCount: 1 << 20), !chunk.isEmpty {
+                hasher.update(data: chunk)
+            }
+            let actual = hasher.finalize().map { String(format: "%02x", $0) }.joined()
+            guard actual == expected.lowercased() else {
+                throw UpdateError.message("The downloaded update is damaged (checksum mismatch). Please try again.")
+            }
+        }.value
+    }
+
+    /// Mounts the DMG, checks the app inside, and swaps it in for the running app.
+    private nonisolated static func replaceApp(at appURL: URL, withAppFrom dmg: URL, expectedBuild: Int) async throws {
+        try await Task.detached(priority: .userInitiated) {
+            let mountPoint = try mount(dmg)
+            defer { _ = try? run("/usr/bin/hdiutil", ["detach", mountPoint, "-quiet", "-force"]) }
+
+            let contents = try FileManager.default.contentsOfDirectory(
+                at: URL(fileURLWithPath: mountPoint),
+                includingPropertiesForKeys: nil
+            )
+            guard let newApp = contents.first(where: { $0.pathExtension == "app" }),
+                  let info = Bundle(url: newApp)?.infoDictionary else {
+                throw UpdateError.message("The update does not contain Shotly.")
+            }
+            guard info["CFBundleIdentifier"] as? String == Bundle.main.bundleIdentifier else {
+                throw UpdateError.message("The update contains a different app.")
+            }
+            guard Int(info["CFBundleVersion"] as? String ?? "") == expectedBuild else {
+                throw UpdateError.message("The update's version does not match the release.")
             }
 
-            let mountURL = URL(fileURLWithPath: mountPoint)
-            let contents = try FileManager.default.contentsOfDirectory(at: mountURL, includingPropertiesForKeys: nil)
-            guard let appBundle = contents.first(where: { $0.pathExtension == "app" }) else {
-                state = .failed("No .app found in DMG")
-                return
-            }
-
-            guard let currentAppURL = Bundle.main.bundleURL as URL? else {
-                state = .failed("Cannot determine current app location")
-                return
-            }
-
-            let backupURL = currentAppURL.deletingLastPathComponent()
-                .appendingPathComponent(currentAppURL.lastPathComponent + ".backup")
-
-            try? FileManager.default.removeItem(at: backupURL)
-            try FileManager.default.moveItem(at: currentAppURL, to: backupURL)
-
+            // Copy next to the current app first (same volume), then swap atomically,
+            // so a failure part-way never leaves a broken Shotly behind.
+            let staging = appURL.deletingLastPathComponent()
+                .appendingPathComponent(".Shotly-update-\(UUID().uuidString).app")
+            try run("/usr/bin/ditto", [newApp.path, staging.path])
+            _ = try? run("/usr/bin/xattr", ["-dr", "com.apple.quarantine", staging.path])
             do {
-                try FileManager.default.copyItem(at: appBundle, to: currentAppURL)
+                _ = try FileManager.default.replaceItemAt(appURL, withItemAt: staging)
             } catch {
-                try? FileManager.default.removeItem(at: currentAppURL)
-                try? FileManager.default.moveItem(at: backupURL, to: currentAppURL)
-                state = .failed("Install failed: \(error.localizedDescription)")
-                return
+                try? FileManager.default.removeItem(at: staging)
+                throw UpdateError.message("Shotly could not replace itself: \(error.localizedDescription)")
             }
+        }.value
+    }
 
-            try? FileManager.default.removeItem(at: backupURL)
-
-            relaunchApp(at: currentAppURL)
-        } catch {
-            state = .failed("Install failed: \(error.localizedDescription)")
+    private nonisolated static func mount(_ dmg: URL) throws -> String {
+        let output = try run("/usr/bin/hdiutil", ["attach", dmg.path, "-nobrowse", "-readonly", "-noverify", "-plist"])
+        guard let plist = try PropertyListSerialization.propertyList(from: output, format: nil) as? [String: Any],
+              let entities = plist["system-entities"] as? [[String: Any]],
+              let mountPoint = entities.compactMap({ $0["mount-point"] as? String }).first else {
+            throw UpdateError.message("The update disk image could not be opened.")
         }
+        return mountPoint
     }
 
-    func cancelDownload() {
-        downloadTask?.cancel()
-        downloadTask = nil
-        state = .idle
-    }
-
-    private func mountDMG(at path: URL) async throws -> String {
-        try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                let process = Process()
-                process.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
-                process.arguments = ["attach", path.path, "-nobrowse", "-readonly", "-plist"]
-
-                let pipe = Pipe()
-                process.standardOutput = pipe
-
-                do {
-                    try process.run()
-                } catch {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                process.waitUntilExit()
-
-                guard process.terminationStatus == 0 else {
-                    continuation.resume(throwing: NSError(domain: "AppUpdater", code: 1, userInfo: [
-                        NSLocalizedDescriptionKey: "Failed to mount DMG (exit code \(process.terminationStatus))"
-                    ]))
-                    return
-                }
-
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                do {
-                    guard let plist = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
-                          let entities = plist["system-entities"] as? [[String: Any]],
-                          let mountPoint = entities.first(where: { $0["mount-point"] != nil })?["mount-point"] as? String else {
-                        continuation.resume(throwing: NSError(domain: "AppUpdater", code: 2, userInfo: [
-                            NSLocalizedDescriptionKey: "Could not find mount point"
-                        ]))
-                        return
-                    }
-                    continuation.resume(returning: mountPoint)
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
+    @discardableResult
+    private nonisolated static func run(_ tool: String, _ arguments: [String]) throws -> Data {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: tool)
+        process.arguments = arguments
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = Pipe()
+        try process.run()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            throw UpdateError.message("\(URL(fileURLWithPath: tool).lastPathComponent) failed (\(process.terminationStatus)).")
         }
+        return data
     }
 
-    private func relaunchApp(at appURL: URL) {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/sh")
-        task.arguments = ["-c", "sleep 1 && open \"\(appURL.path)\""]
-        try? task.run()
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            NSApp.terminate(nil)
+    /// Why the running copy cannot update itself, if it can't.
+    private static func installLocationProblem(for appURL: URL) -> String? {
+        if appURL.path.contains("/AppTranslocation/") || appURL.path.hasPrefix("/Volumes/") {
+            return "Move Shotly to your Applications folder, open it from there, then update."
         }
-    }
-
-    private static var currentArchitecture: String {
-        #if arch(arm64)
-        return "arm64"
-        #else
-        return "x86_64"
-        #endif
-    }
-
-    private func isNewer(_ candidate: String, than current: String) -> Bool {
-        let candidateParts = candidate.split(separator: ".").compactMap { Int($0) }
-        let currentParts = current.split(separator: ".").compactMap { Int($0) }
-
-        for i in 0..<max(candidateParts.count, currentParts.count) {
-            let c = i < candidateParts.count ? candidateParts[i] : 0
-            let o = i < currentParts.count ? currentParts[i] : 0
-            if c > o { return true }
-            if c < o { return false }
+        if !FileManager.default.isWritableFile(atPath: appURL.deletingLastPathComponent().path) {
+            return "Shotly can't write to \(appURL.deletingLastPathComponent().path). Download the update from GitHub instead."
         }
-        return false
+        return nil
+    }
+
+    /// Waits for this process to exit, then opens the updated app.
+    private static func relaunch(_ appURL: URL) {
+        let pid = ProcessInfo.processInfo.processIdentifier
+        let script = "while /bin/kill -0 \(pid) 2>/dev/null; do /bin/sleep 0.2; done; /usr/bin/open \"\(appURL.path)\""
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        process.arguments = ["-c", script]
+        try? process.run()
+        NSApp.terminate(nil)
+    }
+
+    private static func systemSatisfies(_ minimum: String) -> Bool {
+        let parts = minimum.split(separator: ".").compactMap { Int($0) }
+        let required = OperatingSystemVersion(
+            majorVersion: parts.first ?? 0,
+            minorVersion: parts.count > 1 ? parts[1] : 0,
+            patchVersion: parts.count > 2 ? parts[2] : 0
+        )
+        return ProcessInfo.processInfo.isOperatingSystemAtLeast(required)
+    }
+
+    private static func describe(_ error: Error) -> String {
+        if case UpdateError.message(let text) = error { return text }
+        if (error as? URLError)?.code == .notConnectedToInternet {
+            return "You're offline. Connect to the internet and try again."
+        }
+        return error.localizedDescription
     }
 }
 
-private final class DownloadProgressDelegate: NSObject, URLSessionDownloadDelegate {
-    let onProgress: (Double) -> Void
-    var completion: ((Result<URL, Error>) -> Void)?
+private enum UpdateError: Error {
+    case message(String)
+}
 
-    init(onProgress: @escaping (Double) -> Void) {
+/// Forwards download progress from URLSession to the updater.
+private final class DownloadProgressReporter: NSObject, URLSessionDownloadDelegate, Sendable {
+    private let onProgress: @Sendable (Double) -> Void
+
+    init(onProgress: @escaping @Sendable (Double) -> Void) {
         self.onProgress = onProgress
     }
 
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-        let tempCopy = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".dmg")
-        do {
-            try FileManager.default.copyItem(at: location, to: tempCopy)
-            completion?(.success(tempCopy))
-        } catch {
-            completion?(.failure(error))
-        }
-    }
-
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didWriteData bytesWritten: Int64,
+        totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
         guard totalBytesExpectedToWrite > 0 else { return }
-        let progress = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
-        onProgress(progress)
+        onProgress(Double(totalBytesWritten) / Double(totalBytesExpectedToWrite))
     }
 
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?) {
-        if let error = error {
-            completion?(.failure(error))
-        }
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
+        // The async download API moves the file itself.
     }
 }

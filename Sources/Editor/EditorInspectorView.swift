@@ -1,129 +1,325 @@
+import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
+enum EditorInspectorPanel: String, CaseIterable, Identifiable {
+    case collage
+    case crop
+    case effects
+    case layout
+    case background
+    case metadata
+
+    var id: String { rawValue }
+
+    /// Panels grouped under the Backdrop toolbar button.
+    static let backdropPanels: [EditorInspectorPanel] = [.background, .effects, .layout]
+
+    var title: String {
+        switch self {
+        case .collage: "Collage"
+        case .crop: "Crop"
+        case .effects: "Effects"
+        case .layout: "Layout"
+        case .background: "Background"
+        case .metadata: "Metadata"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .collage: "square.grid.2x2"
+        case .crop: "crop"
+        case .effects: "slider.horizontal.3"
+        case .layout: "rectangle.3.group"
+        case .background: "photo.on.rectangle.angled"
+        case .metadata: "info.circle"
+        }
+    }
+}
+
 struct EditorInspectorView: View {
     @Bindable var model: EditorModel
+    let panel: EditorInspectorPanel
+    let onCollageDone: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
+        GeometryReader { geometry in
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
-                    // MARK: Tools
-                    VStack(alignment: .leading, spacing: 10) {
-                        InspectorSectionHeader("TOOLS")
-                        AnnotationInspectorToolGrid(selectedTool: model.selectedTool) { tool in
-                            model.selectTool(tool)
-                        }
+                    switch panel {
+                    case .collage:
+                        CollageControlsSection(model: model, onDone: onCollageDone)
+
+                    case .crop:
+                        ImageCropSection(model: model)
+
+                    case .effects:
+                        BeautifierControlsSection(model: model)
+
+                    case .layout:
+                        LayoutSection(model: model)
+
+                    case .background:
+                        BackgroundPickerSection(model: model)
+
+                    case .metadata:
+                        MetadataControlsSection(model: model)
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.top, 14)
-                    .padding(.bottom, 16)
-
-                    if !model.items.isEmpty {
-                        Button(role: .destructive) {
-                            model.clearAnnotations()
-                        } label: {
-                            Label("Clear All", systemImage: "trash")
-                                .font(.caption)
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .padding(.horizontal, 14)
-                        .padding(.bottom, 12)
-                    }
-
-                    if model.inspectedTool != nil {
-                        InspectorDivider()
-
-                        // MARK: Style
-                        VStack(alignment: .leading, spacing: 10) {
-                            InspectorSectionHeader("STYLE")
-
-                            if model.selectionCount > 1 {
-                                Text("\(model.selectionCount) annotations selected")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            InspectorRow(title: "Color") {
-                                AnnotationColorMenu(selectedSwatch: model.selectedSwatch) { swatch in
-                                    model.setSwatch(swatch)
-                                }
-                            }
-
-                            if model.isStrokeStyleAvailable {
-                                InspectorRow(title: "Stroke") {
-                                    AnnotationStrokeMenu(strokeWidth: model.strokeWidth) { strokeWidth in
-                                        model.setStrokeWidth(strokeWidth)
-                                    }
-                                }
-                            }
-
-                            if model.isRedactionStyleAvailable {
-                                VStack(spacing: 4) {
-                                    HStack {
-                                        Text("Density")
-                                            .font(.caption2)
-                                            .foregroundStyle(.tertiary)
-                                        Spacer()
-                                        Text("\(Int(model.redactionDensity * 100))%")
-                                            .font(.system(.caption2, design: .monospaced))
-                                            .foregroundStyle(.tertiary)
-                                    }
-                                    Slider(
-                                        value: Binding(
-                                            get: { model.redactionDensity },
-                                            set: { model.setRedactionDensity($0) }
-                                        ),
-                                        in: 0.15...1
-                                    )
-                                    .controlSize(.small)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 14)
-                    }
-
-                    if model.isTextStyleAvailable {
-                        InspectorDivider()
-
-                        // MARK: Text
-                        VStack(alignment: .leading, spacing: 10) {
-                            InspectorSectionHeader("TEXT")
-                            AnnotationTextStyleControls(model: model)
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 14)
-                    }
-
-                    InspectorDivider()
-
-                    // MARK: Crop
-                    ImageCropSection(model: model)
-
-                    InspectorDivider()
-
-                    // MARK: Effects
-                    BeautifierControlsSection(model: model)
-
-                    InspectorDivider()
-
-                    // MARK: Layout
-                    LayoutSection(model: model)
-
-                    InspectorDivider()
-
-                    // MARK: Background
-                    BackgroundPickerSection(model: model)
 
                     Spacer(minLength: 20)
                 }
+                // A vertical ScrollView sizes compact content at its ideal
+                // width. Give its content the sidebar's actual width so a
+                // collapsed inspector never becomes horizontally centered.
+                .frame(width: geometry.size.width, alignment: .leading)
             }
             .scrollContentBackground(.hidden)
         }
         .background(Color(nsColor: .controlBackgroundColor))
+    }
+}
+
+// MARK: - Collage
+
+struct CollageControlsSection: View {
+    @Bindable var model: EditorModel
+    let onDone: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                InspectorSectionHeader("COLLAGE")
+                Spacer()
+                if let collage = model.collageState {
+                    Text("\(collage.slots.count) images")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+
+            if let collage = model.collageState {
+                Button {
+                    if model.finalizeCollage() {
+                        onDone()
+                    }
+                } label: {
+                    Label("Done — Continue Editing", systemImage: "checkmark.circle.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .help("Flatten the collage into one image and enable editing tools")
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 7) {
+                    Text("Layout")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+
+                    Picker("Layout", selection: Binding(
+                        get: { collage.layoutType },
+                        set: { model.setCollageLayout($0) }
+                    )) {
+                        Label("Vertical", systemImage: "square.split.2x1").tag(CollageLayoutType.vertical)
+                        Label("Horizontal", systemImage: "square.split.1x2").tag(CollageLayoutType.horizontal)
+                        Label("Grid", systemImage: "square.grid.2x2").tag(CollageLayoutType.grid2x2)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                }
+
+                LabeledSlider(
+                    label: "Spacing",
+                    value: Binding(
+                        get: { collage.spacing },
+                        set: { model.setCollageSpacing($0) }
+                    ),
+                    range: 0...80,
+                    format: { "\(Int($0)) px" }
+                )
+
+                Toggle("Lock image framing", isOn: Binding(
+                    get: { collage.isLocked },
+                    set: { model.setCollageLocked($0) }
+                ))
+                .toggleStyle(.checkbox)
+                .font(.system(size: 12))
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Images")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                        Spacer()
+                        Button {
+                            chooseCollageImages()
+                        } label: {
+                            Label("Add", systemImage: "plus")
+                        }
+                        .controlSize(.small)
+                        .disabled(!model.canAddCollageImages)
+                    }
+
+                    ForEach(Array(collage.slots.enumerated()), id: \.element.id) { index, slot in
+                        collageImageRow(slot: slot, index: index, count: collage.slots.count)
+                    }
+
+                    if let selectedIndex = model.selectedCollageSlotIndex {
+                        VStack(alignment: .leading, spacing: 7) {
+                            HStack {
+                                Text("Image \(selectedIndex + 1) Zoom")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Text("\(Int((model.selectedCollageZoom * 100).rounded()))%")
+                                    .font(.system(size: 10, design: .monospaced))
+                                    .foregroundStyle(.tertiary)
+                            }
+
+                            Slider(
+                                value: Binding(
+                                    get: { model.selectedCollageZoom },
+                                    set: { model.setSelectedCollageZoom($0) }
+                                ),
+                                in: 0.5...5
+                            )
+
+                            HStack(spacing: 6) {
+                                Button {
+                                    model.setSelectedCollageZoom(model.selectedCollageZoom - 0.1)
+                                } label: {
+                                    Image(systemName: "minus.magnifyingglass")
+                                        .frame(maxWidth: .infinity)
+                                }
+
+                                Button("100%") {
+                                    model.setSelectedCollageZoom(1)
+                                }
+                                .frame(maxWidth: .infinity)
+
+                                Button {
+                                    model.setSelectedCollageZoom(model.selectedCollageZoom + 0.1)
+                                } label: {
+                                    Image(systemName: "plus.magnifyingglass")
+                                        .frame(maxWidth: .infinity)
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                        .padding(.top, 4)
+                        .disabled(collage.isLocked)
+                    }
+                }
+
+                Divider()
+
+                Button {
+                    model.resetCollageFraming()
+                } label: {
+                    Label("Reset Pan & Zoom", systemImage: "arrow.counterclockwise")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                Text("Select an image, then use the Zoom slider with a mouse. Drag inside the frame to reposition it. Trackpad pinch and scrolling are also supported.")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+                    .lineSpacing(2)
+            } else {
+                ContentUnavailableView(
+                    "No Collage",
+                    systemImage: "square.grid.2x2",
+                    description: Text("Create a collage from two or more Quick Previews.")
+                )
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func collageImageRow(slot: CollageSlot, index: Int, count: Int) -> some View {
+        HStack(spacing: 8) {
+            Image(nsImage: slot.image)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: 42, height: 32)
+                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+
+            Text("Image \(index + 1)")
+                .font(.system(size: 11, weight: .medium))
+                .lineLimit(1)
+
+            Spacer(minLength: 4)
+
+            Button {
+                model.moveCollageImage(from: index, by: -1)
+            } label: {
+                Image(systemName: "chevron.up")
+            }
+            .buttonStyle(.borderless)
+            .disabled(index == 0)
+            .help("Move image earlier")
+
+            Button {
+                model.moveCollageImage(from: index, by: 1)
+            } label: {
+                Image(systemName: "chevron.down")
+            }
+            .buttonStyle(.borderless)
+            .disabled(index == count - 1)
+            .help("Move image later")
+
+            Button(role: .destructive) {
+                model.removeCollageImage(at: index)
+            } label: {
+                Image(systemName: "trash")
+            }
+            .buttonStyle(.borderless)
+            .disabled(count <= 2)
+            .help(count <= 2 ? "A collage needs at least two images" : "Remove image")
+        }
+        .padding(6)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(
+                    model.selectedCollageSlotID == slot.id
+                        ? Color.accentColor.opacity(0.16)
+                        : Color.primary.opacity(0.035)
+                )
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(
+                    model.selectedCollageSlotID == slot.id
+                        ? Color.accentColor.opacity(0.75)
+                        : Color.clear,
+                    lineWidth: 1
+                )
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            model.selectCollageSlot(slot.id)
+        }
+    }
+
+    private func chooseCollageImages() {
+        guard model.canAddCollageImages else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = true
+        panel.allowedContentTypes = [.image]
+        panel.message = "Add up to \(4 - model.collageImageCount) images to this collage."
+
+        guard panel.runModal() == .OK else { return }
+        model.addCollageImages(panel.urls.compactMap(NSImage.init(contentsOf:)))
     }
 }
 
@@ -163,84 +359,32 @@ private struct InspectorRow<Content: View>: View {
     }
 }
 
-private struct AnnotationInspectorToolGrid: View {
-    let selectedTool: AnnotationTool
-    let onSelect: (AnnotationTool) -> Void
-
-    private let columns: [GridItem] = Array(
-        repeating: GridItem(.flexible(), spacing: 2), count: 5
-    )
-
-    var body: some View {
-        LazyVGrid(columns: columns, spacing: 2) {
-            ForEach(AnnotationTool.toolbarCases) { tool in
-                Button {
-                    onSelect(tool)
-                } label: {
-                    Image(systemName: tool.systemImage)
-                        .font(.system(size: 14, weight: .medium))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 32)
-                        .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(selectedTool == tool ? Color.accentColor : .primary.opacity(0.7))
-                .background(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(selectedTool == tool ? Color.accentColor.opacity(0.15) : .clear)
-                )
-                .help(tool.title)
-            }
-        }
-        .padding(4)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.5))
-        )
-    }
-}
-
 // MARK: - Color Menu
 
-private struct AnnotationColorMenu: View {
+struct AnnotationColorMenu: View {
     let selectedSwatch: AnnotationSwatch
     let onSelect: (AnnotationSwatch) -> Void
     @State private var isPresented = false
 
     var body: some View {
+        // A plain color square, like Shottr; the swatch name is in the tooltip and popover.
         Button {
             isPresented.toggle()
         } label: {
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(selectedSwatch.color)
-                    .frame(width: 16, height: 16)
-                    .overlay(Circle().stroke(.white.opacity(0.15), lineWidth: 0.5))
-
-                Text(selectedSwatch.title)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.primary.opacity(0.8))
-
-                Spacer()
-
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 8, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(.horizontal, 8)
-            .frame(height: 26)
-            .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.5))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .stroke(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(selectedSwatch.color)
+                .frame(width: 28, height: 28)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .stroke(Color.primary.opacity(0.2), lineWidth: 0.5)
+                )
+                .padding(2)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .popover(isPresented: $isPresented, arrowEdge: .trailing) {
+        .help("Color: \(selectedSwatch.title)")
+        .accessibilityLabel("Color, \(selectedSwatch.title)")
+        .popover(isPresented: $isPresented, arrowEdge: .bottom) {
             AnnotationColorPopover(
                 selectedSwatch: selectedSwatch,
                 onSelect: { swatch in onSelect(swatch); isPresented = false },
@@ -322,92 +466,9 @@ private struct AnnotationColorPopover: View {
     }
 }
 
-// MARK: - Stroke Menu
-
-private struct AnnotationStrokeMenu: View {
-    let strokeWidth: CGFloat
-    let onSelect: (CGFloat) -> Void
-    private let widths: [CGFloat] = [2, 4, 6, 8, 12]
-    @State private var isPresented = false
-
-    var body: some View {
-        Button {
-            isPresented.toggle()
-        } label: {
-            HStack(spacing: 10) {
-                StrokePreview(width: strokeWidth)
-                    .frame(width: 30, height: 16)
-
-                Text("\(Int(strokeWidth))px")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.primary.opacity(0.8))
-                    .frame(minWidth: 28, alignment: .leading)
-
-                Spacer(minLength: 10)
-
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 8, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(.horizontal, 8)
-            .frame(height: 26)
-            .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.5))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .stroke(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .popover(isPresented: $isPresented, arrowEdge: .trailing) {
-            VStack(spacing: 7) {
-                ForEach(widths, id: \.self) { width in
-                    Button {
-                        onSelect(width)
-                        isPresented = false
-                    } label: {
-                        ZStack {
-                            if strokeWidth == width {
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(Color.accentColor.opacity(0.12))
-                            }
-                            StrokePreview(width: width, color: strokeWidth == width ? Color.accentColor : Color.primary.opacity(0.58))
-                                .frame(width: 48, height: 32)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 42)
-                        .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(9)
-            .frame(width: 92)
-        }
-    }
-}
-
-private struct StrokePreview: View {
-    let width: CGFloat
-    var color: Color = .primary
-
-    var body: some View {
-        GeometryReader { proxy in
-            Path { path in
-                path.move(to: CGPoint(x: proxy.size.width * 0.24, y: proxy.size.height * 0.68))
-                path.addLine(to: CGPoint(x: proxy.size.width * 0.76, y: proxy.size.height * 0.32))
-            }
-            .stroke(color, style: StrokeStyle(lineWidth: min(width, 7), lineCap: .round))
-        }
-    }
-}
-
 // MARK: - Text Style Controls
 
-private struct AnnotationTextStyleControls: View {
+struct AnnotationTextStyleControls: View {
     @Bindable var model: EditorModel
     @State private var fontSizeText = ""
     @FocusState private var isFontSizeFieldFocused: Bool
@@ -1096,5 +1157,67 @@ struct LabeledSlider: View {
             }
             .controlSize(.small)
         }
+    }
+}
+
+struct MetadataControlsSection: View {
+    @Bindable var model: EditorModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            InspectorSectionHeader("METADATA")
+
+            Toggle("Show Metadata", isOn: $model.showMetadata)
+                .toggleStyle(.checkbox)
+                .disabled(model.captureMetadata == nil)
+
+            if model.showMetadata && model.captureMetadata != nil {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Color")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .padding(.top, 4)
+
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 20, maximum: 20), spacing: 6)], alignment: .leading, spacing: 8) {
+                        ForEach(AnnotationSwatch.allCases) { swatch in
+                            Button {
+                                model.updateConfig { $0.metadataColor = swatch }
+                            } label: {
+                                Circle()
+                                    .fill(swatch.color)
+                                    .frame(width: 14, height: 14)
+                                    .overlay(Circle().stroke(Color.primary.opacity(0.15), lineWidth: 0.5))
+                                    .overlay {
+                                        if model.config.metadataColor == swatch {
+                                            Circle()
+                                                .stroke(Color.accentColor, lineWidth: 1.5)
+                                                .frame(width: 20, height: 20)
+                                        }
+                                    }
+                            }
+                            .buttonStyle(.plain)
+                            .frame(width: 20, height: 20)
+                        }
+                    }
+
+                    LabeledSlider(
+                        label: "Font Size",
+                        value: Binding(
+                            get: { model.config.metadataFontSize },
+                            set: { val in model.updateConfig { $0.metadataFontSize = val } }
+                        ),
+                        range: 8.0...28.0,
+                        format: { "\(Int($0)) pt" }
+                    )
+                }
+                .padding(.leading, 18)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 14)
+        // Keep the inspector pinned to the sidebar's leading edge even while
+        // its optional controls are hidden. Without an explicit width the
+        // ScrollView centers the compact, unchecked state.
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

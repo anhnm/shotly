@@ -180,9 +180,116 @@ enum AnnotationNumberedCircleMetrics {
     }
 }
 
+/// Outline style for rectangle annotations, matching Shottr's shape options.
+enum AnnotationShapeStyle: String, CaseIterable, Identifiable {
+    case rounded
+    case sharp
+    case dashed
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .rounded: "Rounded corners"
+        case .sharp: "Square corners"
+        case .dashed: "Dashed outline"
+        }
+    }
+
+    /// Corner radius for a stroked rectangle. Works in any unit as long as `rect`
+    /// and `lineWidth` share it, so the editor preview and the export match.
+    func cornerRadius(for rect: CGRect, lineWidth: CGFloat) -> CGFloat {
+        guard self == .rounded else { return 0 }
+        let shortSide = min(abs(rect.width), abs(rect.height))
+        return min(shortSide / 2, max(lineWidth * 2.5, shortSide * 0.08))
+    }
+
+    /// Dash pattern for the outline, or nil for a solid line.
+    func dashPattern(lineWidth: CGFloat) -> [CGFloat]? {
+        guard self == .dashed else { return nil }
+        let unit = max(lineWidth, 1)
+        return [unit * 2.5, unit * 2.5]
+    }
+}
+
 enum AnnotationFilledRectangleMetrics {
     static func cornerRadius(for rect: CGRect) -> CGFloat {
         min(12, max(3, min(rect.width, rect.height) * 0.08))
+    }
+}
+
+enum AnnotationMeasureMetrics {
+    static func snappedEnd(from start: CGPoint, to proposedEnd: CGPoint, imageSize: CGSize) -> CGPoint {
+        let horizontalPixels = abs(proposedEnd.x - start.x) * max(imageSize.width, 1)
+        let verticalPixels = abs(proposedEnd.y - start.y) * max(imageSize.height, 1)
+
+        if horizontalPixels >= verticalPixels {
+            return CGPoint(x: proposedEnd.x, y: start.y)
+        }
+        return CGPoint(x: start.x, y: proposedEnd.y)
+    }
+
+    static func isHorizontal(start: CGPoint, end: CGPoint, imageSize: CGSize) -> Bool {
+        let horizontalPixels = abs(end.x - start.x) * max(imageSize.width, 1)
+        let verticalPixels = abs(end.y - start.y) * max(imageSize.height, 1)
+        return horizontalPixels >= verticalPixels
+    }
+
+    static func pixelLength(start: CGPoint, end: CGPoint, imageSize: CGSize) -> Int {
+        let length: CGFloat
+        if isHorizontal(start: start, end: end, imageSize: imageSize) {
+            length = abs(end.x - start.x) * max(imageSize.width, 1)
+        } else {
+            length = abs(end.y - start.y) * max(imageSize.height, 1)
+        }
+        return max(0, Int(length.rounded()))
+    }
+
+    static func label(start: CGPoint, end: CGPoint, imageSize: CGSize) -> String {
+        "\(pixelLength(start: start, end: end, imageSize: imageSize)) px"
+    }
+
+    static func labelCenter(
+        start: CGPoint,
+        end: CGPoint,
+        horizontal: Bool,
+        labelSize: CGSize,
+        capLength: CGFloat,
+        bounds: CGRect
+    ) -> CGPoint {
+        let midpoint = CGPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2)
+        let lineLength = horizontal ? abs(end.x - start.x) : abs(end.y - start.y)
+        let labelLength = horizontal ? labelSize.width : labelSize.height
+        let requiredClearance = max(28, capLength * 2)
+        let fitsInside = lineLength >= labelLength + requiredClearance
+
+        let halfWidth = labelSize.width / 2
+        let halfHeight = labelSize.height / 2
+        let clampedMidX = min(max(midpoint.x, bounds.minX + halfWidth), bounds.maxX - halfWidth)
+        let clampedMidY = min(max(midpoint.y, bounds.minY + halfHeight), bounds.maxY - halfHeight)
+
+        if fitsInside {
+            return CGPoint(x: clampedMidX, y: clampedMidY)
+        }
+
+        let outsideGap: CGFloat = 8
+        if horizontal {
+            let above = midpoint.y - capLength / 2 - halfHeight - outsideGap
+            let below = midpoint.y + capLength / 2 + halfHeight + outsideGap
+            let y = above >= bounds.minY + halfHeight ? above : below
+            return CGPoint(
+                x: clampedMidX,
+                y: min(max(y, bounds.minY + halfHeight), bounds.maxY - halfHeight)
+            )
+        }
+
+        let right = midpoint.x + capLength / 2 + halfWidth + outsideGap
+        let left = midpoint.x - capLength / 2 - halfWidth - outsideGap
+        let x = right <= bounds.maxX - halfWidth ? right : left
+        return CGPoint(
+            x: min(max(x, bounds.minX + halfWidth), bounds.maxX - halfWidth),
+            y: clampedMidY
+        )
     }
 }
 
@@ -286,6 +393,8 @@ struct AnnotationItem: Identifiable, Equatable {
     var isItalic: Bool
     var isUnderline: Bool
     var textAlignment: NSTextAlignment
+    /// Outline style for rectangles.
+    var shapeStyle: AnnotationShapeStyle
 
     init(
         id: UUID = UUID(),
@@ -301,7 +410,8 @@ struct AnnotationItem: Identifiable, Equatable {
         isBold: Bool = true,
         isItalic: Bool = false,
         isUnderline: Bool = false,
-        textAlignment: NSTextAlignment = .left
+        textAlignment: NSTextAlignment = .left,
+        shapeStyle: AnnotationShapeStyle = .sharp
     ) {
         self.id = id
         self.tool = tool
@@ -317,6 +427,7 @@ struct AnnotationItem: Identifiable, Equatable {
         self.isItalic = isItalic
         self.isUnderline = isUnderline
         self.textAlignment = textAlignment
+        self.shapeStyle = shapeStyle
     }
 
     func resolvedFont(size: CGFloat) -> NSFont {
@@ -330,7 +441,7 @@ struct AnnotationItem: Identifiable, Equatable {
         case .select:
             return rect.standardized
 
-        case .line, .arrow, .freehand:
+        case .line, .measure, .arrow, .freehand:
             let boundsPoints = tool == .arrow ? arrowPoints : points
             guard let first = boundsPoints.first else { return rect.standardized }
             let bounds = boundsPoints.dropFirst().reduce(CGRect(origin: first, size: .zero)) { rect, point in
@@ -380,7 +491,7 @@ struct AnnotationItem: Identifiable, Equatable {
         case .select:
             return false
 
-        case .line:
+        case .line, .measure:
             guard points.count == 2 else { return false }
             return hypot(points[0].x - points[1].x, points[0].y - points[1].y) >= minimumSize
         case .arrow:
@@ -407,7 +518,7 @@ struct AnnotationItem: Identifiable, Equatable {
         case .select:
             return false
 
-        case .line:
+        case .line, .measure:
             guard let start = points.first,
                   let end = points.last else {
                 return false
@@ -610,6 +721,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
     case filledRectangle
     case ellipse
     case line
+    case measure
     case arrow
     case freehand
     case numberedCircle
@@ -631,10 +743,11 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
         case .filledRectangle: "Solid rectangle"
         case .ellipse: "Circle"
         case .line: "Straight line"
+        case .measure: "Measure"
         case .arrow: "Arrow"
         case .freehand: "Freehand"
         case .numberedCircle: "Numbered circle"
-        case .pixelate: "Pixelate"
+        case .pixelate: "Mosaic"
         case .blur: "Blur"
         case .spotlight: "Spotlight"
         case .text: "Text"
@@ -648,6 +761,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
         case .filledRectangle: "square.fill"
         case .ellipse: "circle"
         case .line: "line.diagonal"
+        case .measure: "ruler"
         case .arrow: "arrow.up.right"
         case .freehand: "scribble"
         case .numberedCircle: "1.circle.fill"
@@ -663,7 +777,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
     }
 
     var usesEndpoints: Bool {
-        self == .line || self == .arrow
+        self == .line || self == .measure || self == .arrow
     }
 
     var isRedactionTool: Bool {
@@ -674,11 +788,37 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
         self == .spotlight
     }
 
+    var usesColorStyle: Bool {
+        switch self {
+        case .rectangle, .filledRectangle, .ellipse, .line, .measure, .arrow, .freehand, .numberedCircle, .text:
+            true
+        case .select, .pixelate, .blur, .spotlight:
+            false
+        }
+    }
+
+    var usesStrokeStyle: Bool {
+        switch self {
+        case .rectangle, .ellipse, .line, .measure, .arrow, .freehand:
+            true
+        case .select, .filledRectangle, .numberedCircle, .pixelate, .blur, .spotlight, .text:
+            false
+        }
+    }
+
+    var usesDensityStyle: Bool {
+        isRedactionTool || isSpotlightTool
+    }
+
+    var usesTextStyle: Bool {
+        self == .text
+    }
+
     var supportsAspectLock: Bool {
         switch self {
         case .rectangle, .filledRectangle, .ellipse, .spotlight:
             true
-        case .select, .line, .arrow, .freehand, .numberedCircle, .pixelate, .blur, .text:
+        case .select, .line, .measure, .arrow, .freehand, .numberedCircle, .pixelate, .blur, .text:
             false
         }
     }
@@ -688,7 +828,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
     }
 }
 
-struct AnnotationSwatch: Identifiable, Equatable, Hashable {
+struct AnnotationSwatch: Identifiable, Equatable, Hashable, Codable, Sendable {
     let id: String
     let title: String
     let red: CGFloat

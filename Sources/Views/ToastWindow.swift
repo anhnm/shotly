@@ -16,7 +16,13 @@ final class ToastWindow {
         dismiss(animated: false)
         panelGeneration &+= 1
 
-        let toastView = ToastContentView(title: title, message: message, icon: icon, systemIcon: systemIcon)
+        let toastView = ToastContentView(
+            title: title,
+            message: message,
+            icon: icon,
+            systemIcon: systemIcon,
+            onDismiss: { ToastWindow.shared.dismiss(animated: true) }
+        )
         let hostingView = NSHostingView(rootView: toastView)
         hostingView.setFrameSize(hostingView.fittingSize)
 
@@ -38,8 +44,8 @@ final class ToastWindow {
         guard let screen = preferredScreen ?? NSScreen.main ?? NSScreen.screens.first else { return }
         let screenFrame = screen.visibleFrame
         let panelSize = panel.frame.size
-        let x = screenFrame.midX - panelSize.width / 2
-        let y = screenFrame.maxY - panelSize.height - 12
+        let x = screenFrame.maxX - panelSize.width - 16
+        let y = screenFrame.maxY - panelSize.height - 16
         panel.setFrameOrigin(NSPoint(x: x, y: y))
 
         panel.alphaValue = 0
@@ -93,6 +99,7 @@ private struct ToastContentView: View {
     let message: String
     let icon: NSImage?
     let systemIcon: String?
+    let onDismiss: () -> Void
 
     var body: some View {
         HStack(spacing: 10) {
@@ -116,6 +123,17 @@ private struct ToastContentView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
+
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20, height: 20)
+                    .background(Color.primary.opacity(0.06), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .help("Dismiss")
+            .accessibilityLabel("Dismiss notification")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -126,5 +144,7 @@ private struct ToastContentView: View {
                 .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
         )
         .shadow(color: .black.opacity(0.15), radius: 12, y: 4)
+        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .onTapGesture(perform: onDismiss)
     }
 }

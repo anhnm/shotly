@@ -1,12 +1,15 @@
 import SwiftUI
 import Carbon
+import ServiceManagement
 
 enum SettingsSection: String, CaseIterable, Identifiable {
     case general = "General"
+    case hotkeys = "Hotkeys"
     case capture = "Capture"
+    case backdrop = "Backdrop"
     case recording = "Recording"
+    case watermark = "Watermark"
     case history = "History"
-    case videos = "Videos"
     case about = "About"
 
     var id: String { rawValue }
@@ -14,53 +17,201 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .general: return "gearshape"
+        case .hotkeys: return "keyboard"
         case .capture: return "camera.viewfinder"
+        case .backdrop: return "photo.artframe"
         case .recording: return "record.circle"
-        case .history: return "photo.on.rectangle.angled"
-        case .videos: return "video.circle"
+        case .watermark: return "seal"
+        case .history: return "clock.arrow.circlepath"
         case .about: return "info.circle"
         }
     }
 }
 
 struct PreferencesView: View {
+    @AppStorage("bs_appAppearance") private var appAppearanceRaw: String = AppAppearance.system.rawValue
     @State private var selectedSection: SettingsSection = .general
 
-    var body: some View {
-        HStack(spacing: 0) {
-            List(SettingsSection.allCases, selection: $selectedSection) { section in
-                Label(section.rawValue, systemImage: section.icon)
-                    .tag(section)
-            }
-            .listStyle(.sidebar)
-            .frame(width: 170)
+    init(initialSection: SettingsSection = .general) {
+        _selectedSection = State(initialValue: initialSection)
+    }
 
-            Divider()
-
-            ZStack {
-                GeneralSettingsTab()
-                    .opacity(selectedSection == .general ? 1 : 0)
-                    .allowsHitTesting(selectedSection == .general)
-                CaptureSettingsTab()
-                    .opacity(selectedSection == .capture ? 1 : 0)
-                    .allowsHitTesting(selectedSection == .capture)
-                RecordingSettingsTab()
-                    .opacity(selectedSection == .recording ? 1 : 0)
-                    .allowsHitTesting(selectedSection == .recording)
-                HistoryTab()
-                    .opacity(selectedSection == .history ? 1 : 0)
-                    .allowsHitTesting(selectedSection == .history)
-                VideosTab()
-                    .opacity(selectedSection == .videos ? 1 : 0)
-                    .allowsHitTesting(selectedSection == .videos)
-                AboutTab()
-                    .opacity(selectedSection == .about ? 1 : 0)
-                    .allowsHitTesting(selectedSection == .about)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    var preferredColorScheme: ColorScheme? {
+        switch AppAppearance(rawValue: appAppearanceRaw) ?? .system {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
         }
-        .frame(minWidth: 680, minHeight: 560)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    var body: some View {
+        // Shottr-style preferences: icon tabs under the title, then a two-column form.
+        // The window has a transparent title bar, so the tab row starts below it.
+        GeometryReader { proxy in
+            VStack(spacing: 0) {
+                SettingsTabBar(selection: $selectedSection)
+                    .padding(.top, proxy.safeAreaInsets.top)
+                    .background(WindowDragBackground())
+
+                Divider()
+
+                selectedTab
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .ignoresSafeArea(.container, edges: .top)
+        }
+        .frame(minWidth: 640, minHeight: 520)
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("switchToSettingsTab"))) { notification in
+            if let section = notification.object as? SettingsSection {
+                selectedSection = section
+            }
+        }
+        .preferredColorScheme(preferredColorScheme)
+    }
+
+    @ViewBuilder
+    private var selectedTab: some View {
+        switch selectedSection {
+        case .general: GeneralSettingsTab()
+        case .hotkeys: HotkeysSettingsTab()
+        case .capture: CaptureSettingsTab()
+        case .backdrop: BackdropSettingsTab()
+        case .recording: RecordingSettingsTab()
+        case .watermark: WatermarkSettingsTab()
+        case .history: HistorySettingsTab()
+        case .about: AboutTab()
+        }
+    }
+}
+
+// MARK: - Layout Building Blocks
+
+private struct SettingsTabBar: View {
+    @Binding var selection: SettingsSection
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(SettingsSection.allCases) { section in
+                let isSelected = selection == section
+                Button {
+                    selection = section
+                } label: {
+                    VStack(spacing: 3) {
+                        Image(systemName: section.icon)
+                            .font(.system(size: 18, weight: .regular))
+                            .frame(height: 22)
+                        Text(section.rawValue)
+                            .font(.system(size: 11))
+                    }
+                    .foregroundStyle(isSelected ? Color.accentColor : Color.primary.opacity(0.75))
+                    .frame(width: 70, height: 50)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(isSelected ? Color.primary.opacity(0.1) : .clear)
+                    )
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(section.rawValue)
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
+            }
+        }
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+    }
+}
+
+/// Lets the window be dragged from the empty tab-bar area, since the title bar is transparent.
+private struct WindowDragBackground: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { DragView() }
+    func updateNSView(_ nsView: NSView, context: Context) {}
+
+    private final class DragView: NSView {
+        override func mouseDown(with event: NSEvent) {
+            window?.performDrag(with: event)
+        }
+    }
+}
+
+/// Scrolling page with a two-column grid: right-aligned labels, left-aligned controls.
+private struct SettingsPage<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        ScrollView {
+            Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 14, verticalSpacing: 12) {
+                content
+            }
+            .padding(.horizontal, 32)
+            .padding(.vertical, 24)
+            .frame(maxWidth: .infinity)
+        }
+    }
+}
+
+private struct SettingsRow<Content: View>: View {
+    let label: String
+    @ViewBuilder let content: Content
+
+    init(_ label: String, @ViewBuilder content: () -> Content) {
+        self.label = label
+        self.content = content()
+    }
+
+    var body: some View {
+        GridRow {
+            Text(label)
+                .frame(minWidth: 170, alignment: .trailing)
+                .gridColumnAlignment(.trailing)
+            VStack(alignment: .leading, spacing: 8) {
+                content
+            }
+            .frame(maxWidth: 380, alignment: .leading)
+            .gridColumnAlignment(.leading)
+        }
+    }
+}
+
+private struct SettingsSeparator: View {
+    var body: some View {
+        GridRow {
+            Divider()
+                .gridCellColumns(2)
+                .padding(.vertical, 6)
+        }
+    }
+}
+
+/// Secondary explanation shown under a control.
+private struct SettingsNote: View {
+    let text: String
+
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        Text(text)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// A reset button that asks before discarding the user's settings.
+private struct SettingsResetButton: View {
+    let title: String
+    let message: String
+    let action: () -> Void
+    @State private var isConfirming = false
+
+    var body: some View {
+        Button(title) { isConfirming = true }
+            .controlSize(.small)
+            .alert(title, isPresented: $isConfirming) {
+                Button("Reset", role: .destructive, action: action)
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text(message)
+            }
     }
 }
 
@@ -70,18 +221,22 @@ struct GeneralSettingsTab: View {
     @AppStorage("bs_appAppearance") private var appAppearanceRaw: String = AppAppearance.system.rawValue
     @AppStorage("bs_saveDirectory") private var saveDir = NSHomeDirectory() + "/Desktop"
     @AppStorage("bs_copyAfterSave") private var copyAfterSave = true
+    @AppStorage("bs_autoSaveCaptures") private var autoSaveCaptures = true
     @AppStorage("bs_playSound") private var playSound = true
+    @AppStorage("bs_smartBlurEnabled") private var smartBlurEnabled = false
     @AppStorage("bs_exportFormat") private var exportFormatRaw: String = ExportFormat.png.rawValue
     @AppStorage("bs_exportQuality") private var exportQuality: Double = 0.9
+    @AppStorage("bs_analyticsEnabled") private var analyticsEnabled = true
 
-    @State private var defaultConfig = AppPreferences.defaultBeautifierConfig
+    @State private var launchesAtLogin = SMAppService.mainApp.status == .enabled
+    @State private var launchAtLoginError: String?
 
     private var appAppearance: Binding<AppAppearance> {
         Binding(
             get: { AppAppearance(rawValue: appAppearanceRaw) ?? .system },
             set: { newValue in
                 appAppearanceRaw = newValue.rawValue
-                AppPreferences.applyAppearance()
+                AppPreferences.applyAppearance(newValue)
             }
         )
     }
@@ -93,135 +248,238 @@ struct GeneralSettingsTab: View {
         )
     }
 
-    private var saveDirDisplayName: String {
-        let url = URL(fileURLWithPath: saveDir)
-        return url.lastPathComponent
+    /// Without auto-save, captures are always copied, so the Copy box is locked on.
+    private var copyAfterCapture: Binding<Bool> {
+        Binding(
+            get: { autoSaveCaptures ? copyAfterSave : true },
+            set: { copyAfterSave = $0 }
+        )
+    }
+
+    private var launchAtLogin: Binding<Bool> {
+        Binding(
+            get: { launchesAtLogin },
+            set: { enabled in
+                do {
+                    if enabled {
+                        try SMAppService.mainApp.register()
+                    } else {
+                        try SMAppService.mainApp.unregister()
+                    }
+                    launchAtLoginError = nil
+                } catch {
+                    launchAtLoginError = "Couldn't change the login item: \(error.localizedDescription)"
+                }
+                launchesAtLogin = SMAppService.mainApp.status == .enabled
+            }
+        )
     }
 
     var body: some View {
-        Form {
-            Section("Appearance") {
-                Picker("Mode", selection: appAppearance) {
+        SettingsPage {
+            SettingsRow("Appearance") {
+                Picker("Appearance", selection: appAppearance) {
                     ForEach(AppAppearance.allCases) { appearance in
                         Text(appearance.label).tag(appearance)
                     }
                 }
                 .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
             }
 
-            Section("Save") {
-                HStack {
-                    Text("Save to")
-                    Spacer()
-                    Text(saveDirDisplayName)
-                        .foregroundStyle(.secondary)
+            SettingsSeparator()
+
+            SettingsRow("Screenshots folder") {
+                Button {
+                    chooseSaveDirectory()
+                } label: {
+                    Text(abbreviatedPath(saveDir))
                         .lineLimit(1)
-                        .truncationMode(.head)
-                    Button("Choose...") {
-                        let panel = NSOpenPanel()
-                        panel.canChooseFiles = false
-                        panel.canChooseDirectories = true
-                        panel.allowsMultipleSelection = false
-                        panel.directoryURL = URL(fileURLWithPath: saveDir)
-                        if panel.runModal() == .OK, let url = panel.url {
-                            saveDir = url.path
-                        }
-                    }
-                    .controlSize(.small)
+                        .truncationMode(.middle)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .frame(maxWidth: 300, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .fill(Color.primary.opacity(0.08))
+                        )
+                        .contentShape(Rectangle())
                 }
-
-                Toggle("Copy to clipboard after saving", isOn: $copyAfterSave)
+                .buttonStyle(.plain)
+                .help("Choose the folder where screenshots are saved")
             }
 
-            Section("Capture") {
-                Toggle("Play shutter sound", isOn: $playSound)
-            }
-
-            Section("Default Effects") {
-                DefaultConfigPreview(config: defaultConfig)
-                    .frame(height: 120)
-                    .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
-
-                defaultSlider(label: "Padding", value: $defaultConfig.padding, range: 0.0...0.45) {
-                    "\(Int($0 * 100))%"
+            SettingsRow("After screenshot") {
+                HStack(spacing: 16) {
+                    Toggle("Save", isOn: $autoSaveCaptures)
+                    Toggle("Copy", isOn: copyAfterCapture)
+                        .disabled(!autoSaveCaptures)
                 }
-                defaultSlider(label: "Corner Radius", value: $defaultConfig.cornerRadius, range: 0.0...0.12) {
-                    "\(Int($0 * 1000))"
-                }
-                defaultSlider(label: "Shadow", value: $defaultConfig.shadowStrength, range: 0.0...1.0) {
-                    "\(Int($0 * 100))%"
-                }
-            }
-            .onChange(of: defaultConfig) { _, newValue in
-                AppPreferences.defaultBeautifierConfig = newValue
-            }
-
-            Section {
-                DefaultBackgroundPicker(selectedStyle: $defaultConfig.style)
-
-                Button("Reset Effects to Defaults") {
-                    defaultConfig = .default
-                    AppPreferences.defaultBeautifierConfig = .default
-                }
-                .controlSize(.small)
-                .foregroundStyle(.secondary)
-            } header: {
-                HStack {
-                    Text("Default Background")
-                    Spacer()
-                    Text(backgroundLabel(for: defaultConfig.style))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .textCase(.none)
+                .toggleStyle(.checkbox)
+                if !autoSaveCaptures {
+                    SettingsNote("Captures are only copied to the clipboard. Use Save in the preview or editor to keep one.")
                 }
             }
 
-            Section("Export") {
-                Picker("Format", selection: exportFormat) {
+            SettingsRow("Save format") {
+                Picker("Save format", selection: exportFormat) {
                     ForEach(ExportFormat.allCases, id: \.self) { format in
                         Text(format.rawValue.uppercased()).tag(format)
                     }
                 }
-                .pickerStyle(.segmented)
+                .pickerStyle(.radioGroup)
+                .horizontalRadioGroupLayout()
+                .labelsHidden()
+            }
 
-                if exportFormatRaw == ExportFormat.jpeg.rawValue {
-                    Slider(value: $exportQuality, in: 0.1...1.0, step: 0.05) {
-                        Text("Quality: \(Int(exportQuality * 100))%")
+            if exportFormat.wrappedValue == .jpeg {
+                SettingsRow("JPEG quality") {
+                    HStack(spacing: 10) {
+                        Slider(value: $exportQuality, in: 0.1...1.0, step: 0.05)
+                            .frame(width: 200)
+                        Text("\(Int(exportQuality * 100))%")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
 
-            Section {
-                Button("Reset All General Settings to Defaults") {
+            SettingsSeparator()
+
+            SettingsRow("Autostart") {
+                Toggle("Launch at startup", isOn: launchAtLogin)
+                    .toggleStyle(.checkbox)
+                if let launchAtLoginError {
+                    Text(launchAtLoginError)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            SettingsRow("Sound") {
+                Toggle("Play shutter sound", isOn: $playSound)
+                    .toggleStyle(.checkbox)
+            }
+
+            SettingsRow("Smart Blur") {
+                Toggle("Redact sensitive info automatically", isOn: $smartBlurEnabled)
+                    .toggleStyle(.checkbox)
+            }
+
+            SettingsSeparator()
+
+            SettingsRow("Privacy") {
+                Toggle("Share anonymous usage analytics", isOn: $analyticsEnabled)
+                    .toggleStyle(.checkbox)
+                    .onChange(of: analyticsEnabled) { _, enabled in
+                        AnalyticsService.updateConsent(enabled)
+                    }
+                SettingsNote("Counts feature usage to help improve Shotly. Screenshots, OCR text, file names, clipboard contents and personal data are never sent.")
+            }
+
+            SettingsSeparator()
+
+            SettingsRow("") {
+                SettingsResetButton(
+                    title: "Reset General Settings",
+                    message: "Appearance, folder, save options, sound and privacy go back to their defaults."
+                ) {
                     appAppearanceRaw = AppAppearance.system.rawValue
-                    AppPreferences.applyAppearance()
+                    AppPreferences.applyAppearance(.system)
                     saveDir = NSHomeDirectory() + "/Desktop"
+                    autoSaveCaptures = true
                     copyAfterSave = true
                     playSound = true
+                    smartBlurEnabled = false
                     exportFormatRaw = ExportFormat.png.rawValue
                     exportQuality = 0.9
-                    defaultConfig = .default
-                    AppPreferences.defaultBeautifierConfig = .default
+                    analyticsEnabled = true
+                    AnalyticsService.updateConsent(true)
                 }
-                .controlSize(.small)
-                .foregroundStyle(.red)
             }
         }
-        .formStyle(.grouped)
     }
 
-    private func defaultSlider(label: String, value: Binding<CGFloat>, range: ClosedRange<CGFloat>, format: @escaping (CGFloat) -> String) -> some View {
-        VStack(spacing: 4) {
-            HStack {
-                Text(label)
-                    .font(.caption)
-                Spacer()
-                Text(format(value.wrappedValue))
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(.secondary)
+    private func chooseSaveDirectory() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = URL(fileURLWithPath: saveDir)
+        if panel.runModal() == .OK, let url = panel.url {
+            saveDir = url.path
+        }
+    }
+
+    private func abbreviatedPath(_ path: String) -> String {
+        (path as NSString).abbreviatingWithTildeInPath
+    }
+}
+
+// MARK: - Backdrop
+
+struct BackdropSettingsTab: View {
+    @State private var defaultConfig = AppPreferences.defaultBeautifierConfig
+
+    var body: some View {
+        SettingsPage {
+            SettingsRow("Preview") {
+                DefaultConfigPreview(config: defaultConfig)
+                    .frame(width: 300, height: 160)
+                SettingsNote("Applied to every new capture and recording, and used when the editor opens.")
             }
+
+            SettingsSeparator()
+
+            SettingsRow("Padding") {
+                valueSlider(value: $defaultConfig.padding, range: 0.0...0.45) { "\(Int($0 * 100))%" }
+            }
+            SettingsRow("Corner radius") {
+                valueSlider(value: $defaultConfig.cornerRadius, range: 0.0...0.12) { "\(Int($0 * 1000))" }
+            }
+            SettingsRow("Shadow") {
+                valueSlider(value: $defaultConfig.shadowStrength, range: 0.0...1.0) { "\(Int($0 * 100))%" }
+            }
+
+            SettingsSeparator()
+
+            SettingsRow("Background") {
+                Text(backgroundLabel(for: defaultConfig.style))
+                    .foregroundStyle(.secondary)
+                DefaultBackgroundPicker(selectedStyle: $defaultConfig.style)
+            }
+
+            SettingsSeparator()
+
+            SettingsRow("") {
+                SettingsResetButton(
+                    title: "Reset Backdrop",
+                    message: "Padding, corner radius, shadow and background go back to their defaults."
+                ) {
+                    defaultConfig = .default
+                }
+            }
+        }
+        .onChange(of: defaultConfig) { _, newValue in
+            AppPreferences.defaultBeautifierConfig = newValue
+        }
+    }
+
+    private func valueSlider(
+        value: Binding<CGFloat>,
+        range: ClosedRange<CGFloat>,
+        format: @escaping (CGFloat) -> String
+    ) -> some View {
+        HStack(spacing: 10) {
             Slider(value: value, in: range)
-                .controlSize(.small)
+                .frame(width: 220)
+            Text(format(value.wrappedValue))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+                .frame(minWidth: 36, alignment: .leading)
         }
     }
 
@@ -556,13 +814,136 @@ private struct DefaultConfigPreview: View {
     }
 }
 
-// MARK: - Capture Settings
+// MARK: - Hotkeys
+
+struct HotkeysSettingsTab: View {
+    @State private var shortcutResetID = UUID()
+
+    private static let captureShortcuts: [(String, ShortcutService.Action)] = [
+        ("Capture area", .region),
+        ("Capture fullscreen", .fullscreen),
+        ("Capture window", .window),
+        ("Record screen", .recording),
+        ("Recognize text (OCR)", .ocr),
+        ("Pick color", .colorPicker),
+    ]
+
+    var body: some View {
+        SettingsPage {
+            Group {
+                ForEach(Self.captureShortcuts, id: \.1) { label, action in
+                    SettingsRow(label) {
+                        ShortcutRow(action: action)
+                    }
+                }
+            }
+            .id(shortcutResetID)
+
+            SettingsSeparator()
+
+            Group {
+                SettingsRow("Copy in editor") {
+                    EditorShortcutRow(action: .copy)
+                }
+                SettingsRow("Save in editor") {
+                    EditorShortcutRow(action: .save)
+                }
+            }
+            .id(shortcutResetID)
+
+            SettingsSeparator()
+
+            SettingsRow("Editor keys") {
+                EditorKeyReference()
+                SettingsNote("Single keys work while the editor is open and you are not typing text.")
+            }
+
+            SettingsSeparator()
+
+            SettingsRow("") {
+                SettingsResetButton(
+                    title: "Reset Hotkeys",
+                    message: "All capture and editor shortcuts go back to their defaults."
+                ) {
+                    for action in ShortcutService.Action.allCases {
+                        ShortcutService.shared.saveShortcut(ShortcutRow.defaultShortcut(for: action), for: action)
+                    }
+                    ShortcutService.shared.registerAll()
+                    AppPreferences.editorCopyShortcut = .defaultCopy
+                    AppPreferences.editorSaveShortcut = .defaultSave
+                    shortcutResetID = UUID()
+                }
+            }
+        }
+    }
+}
+
+/// Read-only list of the editor's single-key shortcuts.
+private struct EditorKeyReference: View {
+    private static let entries: [(String, String)] = {
+        let tools: [AnnotationTool] = [
+            .select, .text, .measure, .rectangle, .filledRectangle, .freehand,
+            .arrow, .blur, .spotlight, .numberedCircle, .ellipse, .line,
+        ]
+        var result = tools.map { ($0.shortcutHint, $0.title) }
+        result += [
+            (EditorAction.crop.shortcutHint, "Crop"),
+            (EditorAction.pin.shortcutHint, "Pin to screen"),
+            (EditorAction.backdrop.shortcutHint, "Backdrop"),
+            (EditorAction.watermark.shortcutHint, "Watermark"),
+            (EditorAction.metadata.shortcutHint, "Metadata"),
+            ("Z", "Zoom in at cursor"),
+            ("⌘0", "Actual size"),
+            ("⌘1", "Fit to window"),
+            ("Tab", "Copy color under cursor"),
+            ("Space", "Hold and drag to pan"),
+        ]
+        return result
+    }()
+
+    var body: some View {
+        Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 5) {
+            ForEach(Array(stride(from: 0, to: Self.entries.count, by: 2)), id: \.self) { index in
+                GridRow {
+                    entry(Self.entries[index])
+                    if index + 1 < Self.entries.count {
+                        entry(Self.entries[index + 1])
+                    }
+                }
+            }
+        }
+    }
+
+    private func entry(_ item: (String, String)) -> some View {
+        HStack(spacing: 8) {
+            Text(item.0)
+                .font(.system(size: 11, weight: .semibold))
+                .monospacedDigit()
+                .frame(minWidth: 22)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 2)
+                .background(
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .fill(Color.primary.opacity(0.1))
+                )
+            Text(item.1)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .frame(width: 180, alignment: .leading)
+    }
+}
+
+// MARK: - Capture
 
 struct CaptureSettingsTab: View {
     @AppStorage("bs_selfTimerDelay") private var selfTimerRaw: Int = 0
-    @AppStorage("bs_overlayPosition") private var overlayPositionRaw: String = OverlayPosition.bottomRight.rawValue
+    @AppStorage("bs_overlayPosition") private var overlayPositionRaw: String = OverlayPosition.cursor.rawValue
+    @AppStorage("bs_overlayAutoDismiss") private var overlayAutoDismiss: Bool = true
     @AppStorage("bs_overlayDismissDelay") private var overlayDismissDelay: Double = 5.0
-    @State private var shortcutResetID = UUID()
+    @AppStorage("bs_ocrTranslationEnabled") private var ocrTranslationEnabled: Bool = true
+    @AppStorage("bs_ocrTranslationTargetLanguage") private var ocrTranslationTargetLanguageRaw: String = OCRTranslationLanguage.vietnamese.rawValue
 
     private var selfTimerDelay: Binding<SelfTimerDelay> {
         Binding(
@@ -573,95 +954,87 @@ struct CaptureSettingsTab: View {
 
     private var overlayPosition: Binding<OverlayPosition> {
         Binding(
-            get: { OverlayPosition(rawValue: overlayPositionRaw) ?? .bottomRight },
+            get: { OverlayPosition(rawValue: overlayPositionRaw) ?? .cursor },
             set: { overlayPositionRaw = $0.rawValue }
         )
     }
 
     var body: some View {
-        Form {
-            Section("Self Timer") {
-                Picker("Delay", selection: selfTimerDelay) {
+        SettingsPage {
+            SettingsRow("Self timer") {
+                Picker("Self timer", selection: selfTimerDelay) {
                     ForEach(SelfTimerDelay.allCases, id: \.self) { delay in
                         Text(delay.label).tag(delay)
                     }
                 }
                 .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
             }
 
-            Section("Preview Overlay") {
+            SettingsSeparator()
+
+            SettingsRow("Preview thumbnail") {
                 Picker("Position", selection: overlayPosition) {
-                    Text("Bottom Right").tag(OverlayPosition.bottomRight)
-                    Text("Bottom Left").tag(OverlayPosition.bottomLeft)
+                    Text("At cursor").tag(OverlayPosition.cursor)
+                    Text("Bottom right").tag(OverlayPosition.bottomRight)
+                    Text("Bottom left").tag(OverlayPosition.bottomLeft)
                 }
-
-                HStack {
-                    Text("Dismiss after")
-                    Spacer()
-                    Text("\(Int(overlayDismissDelay))s")
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                }
-                Slider(value: $overlayDismissDelay, in: 2...15, step: 1)
-                    .controlSize(.small)
+                .pickerStyle(.radioGroup)
+                .horizontalRadioGroupLayout()
+                .labelsHidden()
             }
 
-            Section("Keyboard Shortcuts") {
-                VStack(alignment: .leading, spacing: 8) {
-                    ShortcutRow(label: "Region", action: .region)
-                    ShortcutRow(label: "Fullscreen", action: .fullscreen)
-                    ShortcutRow(label: "OCR Region", action: .ocr)
-                    ShortcutRow(label: "Color Picker", action: .colorPicker)
-                    ShortcutRow(label: "Record Screen", action: .recording)
+            SettingsRow("Hide thumbnail") {
+                HStack(spacing: 10) {
+                    Toggle("Automatically after", isOn: $overlayAutoDismiss)
+                        .toggleStyle(.checkbox)
+                    Stepper(value: $overlayDismissDelay, in: 2...15, step: 1) {
+                        Text("\(Int(overlayDismissDelay)) s")
+                            .monospacedDigit()
+                            .frame(minWidth: 32, alignment: .trailing)
+                    }
+                    .disabled(!overlayAutoDismiss)
                 }
-                .id(shortcutResetID)
+                if overlayAutoDismiss {
+                    SettingsNote("It also hides when you click outside it, and stays while the pointer is over it.")
+                }
+            }
 
-                Button("Reset Shortcuts to Defaults") {
-                    for action in ShortcutService.Action.allCases {
-                        let def: ShortcutService.Shortcut? = switch action {
-                        case .region: .defaultRegion
-                        case .fullscreen: .defaultFullscreen
-                        case .ocr: .defaultOCR
-                        case .colorPicker: .defaultColorPicker
-                        case .recording: .defaultRecording
-                        case .window: nil
-                        }
-                        if let def {
-                            ShortcutService.shared.saveShortcut(def, for: action)
+            SettingsSeparator()
+
+            SettingsRow("OCR translation") {
+                Toggle("Translate recognized text", isOn: $ocrTranslationEnabled)
+                    .toggleStyle(.checkbox)
+                if ocrTranslationEnabled {
+                    Picker("Translate to", selection: $ocrTranslationTargetLanguageRaw) {
+                        ForEach(OCRTranslationLanguage.allCases) { language in
+                            Text(language.label).tag(language.rawValue)
                         }
                     }
-                    ShortcutService.shared.registerAll()
-                    shortcutResetID = UUID()
+                    .fixedSize()
+                    SettingsNote("The source language is detected automatically. Uses Apple's on-device Translation on macOS 15 or later.")
+                } else {
+                    SettingsNote("Recognized text is still copied to the clipboard; the translation window won't open.")
                 }
-                .controlSize(.small)
             }
 
-            Section {
-                Button("Reset All Capture Settings to Defaults") {
+            SettingsSeparator()
+
+            SettingsRow("") {
+                SettingsResetButton(
+                    title: "Reset Capture Settings",
+                    message: "Self timer, preview thumbnail and OCR translation go back to their defaults."
+                ) {
                     selfTimerRaw = 0
-                    overlayPositionRaw = OverlayPosition.bottomRight.rawValue
+                    overlayPositionRaw = OverlayPosition.cursor.rawValue
+                    overlayAutoDismiss = true
                     overlayDismissDelay = 5.0
-                    for action in ShortcutService.Action.allCases {
-                        let def: ShortcutService.Shortcut? = switch action {
-                        case .region: .defaultRegion
-                        case .fullscreen: .defaultFullscreen
-                        case .ocr: .defaultOCR
-                        case .colorPicker: .defaultColorPicker
-                        case .recording: .defaultRecording
-                        case .window: nil
-                        }
-                        if let def {
-                            ShortcutService.shared.saveShortcut(def, for: action)
-                        }
-                    }
-                    ShortcutService.shared.registerAll()
-                    shortcutResetID = UUID()
+                    ocrTranslationEnabled = true
+                    ocrTranslationTargetLanguageRaw = OCRTranslationLanguage.vietnamese.rawValue
                 }
-                .controlSize(.small)
-                .foregroundStyle(.red)
             }
         }
-        .formStyle(.grouped)
     }
 }
 
@@ -674,137 +1047,208 @@ struct RecordingSettingsTab: View {
     @AppStorage("bs_recordingOpenEditor") private var openEditor: Bool = true
 
     var body: some View {
-        Form {
-            Section("Quality") {
-                Picker("Frame Rate", selection: $recordingFPS) {
+        SettingsPage {
+            SettingsRow("Frame rate") {
+                Picker("Frame rate", selection: $recordingFPS) {
                     Text("24 fps").tag(24)
                     Text("30 fps").tag(30)
                     Text("60 fps").tag(60)
                 }
                 .pickerStyle(.segmented)
-
-                Text("Higher frame rates produce smoother video but larger files.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                .labelsHidden()
+                .fixedSize()
+                SettingsNote("Higher frame rates are smoother but make larger files.")
             }
 
-            Section("Capture") {
-                Toggle("Show cursor in recording", isOn: $showCursor)
+            SettingsSeparator()
+
+            SettingsRow("Record") {
+                Toggle("Show cursor", isOn: $showCursor)
+                    .toggleStyle(.checkbox)
                 Toggle("Capture system audio", isOn: $captureAudio)
+                    .toggleStyle(.checkbox)
             }
 
-            Section("After Recording") {
-                Toggle("Open editor after stopping", isOn: $openEditor)
-
-                Text("When disabled, recordings are saved directly without opening the trim editor.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            SettingsRow("After recording") {
+                Toggle("Open the video editor", isOn: $openEditor)
+                    .toggleStyle(.checkbox)
+                SettingsNote("When off, recordings are saved directly without opening the trim editor.")
             }
 
-            Section {
-                Button("Reset All Recording Settings to Defaults") {
+            SettingsSeparator()
+
+            SettingsRow("") {
+                SettingsResetButton(
+                    title: "Reset Recording Settings",
+                    message: "Frame rate, cursor, audio and after-recording options go back to their defaults."
+                ) {
                     recordingFPS = 30
                     showCursor = true
                     captureAudio = false
                     openEditor = true
                 }
-                .controlSize(.small)
-                .foregroundStyle(.red)
             }
         }
-        .formStyle(.grouped)
+    }
+}
+
+private enum EditorShortcutAction {
+    case copy
+    case save
+
+    var current: EditorShortcut {
+        get {
+            switch self {
+            case .copy: return AppPreferences.editorCopyShortcut
+            case .save: return AppPreferences.editorSaveShortcut
+            }
+        }
+    }
+
+    func save(_ shortcut: EditorShortcut) {
+        switch self {
+        case .copy: AppPreferences.editorCopyShortcut = shortcut
+        case .save: AppPreferences.editorSaveShortcut = shortcut
+        }
+    }
+}
+
+/// Field-style button showing a shortcut; click to record a new one.
+private struct ShortcutField: View {
+    let display: String
+    let isRecording: Bool
+    let onStart: () -> Void
+    let onRecord: (UInt32, UInt32) -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        if isRecording {
+            ShortcutRecorderView(onRecord: onRecord, onCancel: onCancel)
+                .frame(width: 130, height: 24)
+        } else {
+            Button(action: onStart) {
+                Text(display)
+                    .font(.system(size: 12, weight: .medium))
+                    .monospacedDigit()
+                    .frame(width: 118, height: 22)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(Color.primary.opacity(0.08))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .stroke(Color.primary.opacity(0.12), lineWidth: 0.5)
+                    )
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Click, then press the new shortcut. Esc cancels.")
+        }
+    }
+}
+
+private struct EditorShortcutRow: View {
+    let action: EditorShortcutAction
+
+    @State private var shortcut: EditorShortcut
+    @State private var isRecording = false
+    @State private var errorMessage: String?
+
+    init(action: EditorShortcutAction) {
+        self.action = action
+        _shortcut = State(initialValue: action.current)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ShortcutField(
+                display: shortcut.displayString,
+                isRecording: isRecording,
+                onStart: {
+                    errorMessage = nil
+                    isRecording = true
+                },
+                onRecord: { keyCode, modifiers in
+                    guard EditorShortcut.supports(keyCode: keyCode) else {
+                        errorMessage = "That key isn't supported. Use a letter, number or punctuation key."
+                        isRecording = false
+                        return
+                    }
+                    let newShortcut = EditorShortcut(keyCode: keyCode, modifiers: modifiers)
+                    shortcut = newShortcut
+                    action.save(newShortcut)
+                    errorMessage = nil
+                    isRecording = false
+                },
+                onCancel: { isRecording = false }
+            )
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .onAppear {
+            shortcut = action.current
+        }
     }
 }
 
 struct ShortcutRow: View {
-    let label: String
     let action: ShortcutService.Action
 
     @State private var shortcut: ShortcutService.Shortcut?
     @State private var isRecording = false
 
     var body: some View {
-        HStack {
-            Text(label)
-                .frame(width: 100, alignment: .leading)
-
-            Toggle("", isOn: Binding(
-                get: { shortcut?.enabled ?? false },
-                set: { enabled in
-                    shortcut?.enabled = enabled
-                    if let s = shortcut {
-                        ShortcutService.shared.saveShortcut(s, for: action)
-                        ShortcutService.shared.registerAll()
-                    }
-                }
-            ))
-            .toggleStyle(.switch)
-            .labelsHidden()
-
-            Spacer()
-
-            if isRecording {
-                ShortcutRecorderView { keyCode, modifiers in
+        HStack(spacing: 12) {
+            ShortcutField(
+                display: shortcut?.displayString ?? "—",
+                isRecording: isRecording,
+                onStart: { isRecording = true },
+                onRecord: { keyCode, modifiers in
                     shortcut = ShortcutService.Shortcut(
                         keyCode: keyCode,
                         modifiers: modifiers,
                         enabled: shortcut?.enabled ?? true
                     )
-                    if let s = shortcut {
-                        ShortcutService.shared.saveShortcut(s, for: action)
-                        ShortcutService.shared.registerAll()
-                    }
+                    persist()
                     isRecording = false
-                } onCancel: {
-                    isRecording = false
+                },
+                onCancel: { isRecording = false }
+            )
+
+            Toggle("Enabled", isOn: Binding(
+                get: { shortcut?.enabled ?? false },
+                set: { enabled in
+                    shortcut?.enabled = enabled
+                    persist()
                 }
-                .frame(width: 120, height: 24)
-            } else {
-                Button {
-                    isRecording = true
-                } label: {
-                    Text(shortcutDisplayString)
-                        .font(.system(.caption, design: .monospaced))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .frame(minWidth: 60)
-                        .background(
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(Color(nsColor: .controlBackgroundColor))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 4)
-                                .stroke(Color(nsColor: .separatorColor), lineWidth: 0.5)
-                        )
-                }
-                .buttonStyle(.plain)
-            }
+            ))
+            .toggleStyle(.checkbox)
         }
         .onAppear {
-            shortcut = ShortcutService.shared.loadShortcut(for: action) ?? defaultShortcut
+            shortcut = ShortcutService.shared.loadShortcut(for: action) ?? Self.defaultShortcut(for: action)
         }
     }
 
-    private var defaultShortcut: ShortcutService.Shortcut {
+    private func persist() {
+        guard let shortcut else { return }
+        ShortcutService.shared.saveShortcut(shortcut, for: action)
+        ShortcutService.shared.registerAll()
+    }
+
+    static func defaultShortcut(for action: ShortcutService.Action) -> ShortcutService.Shortcut {
         switch action {
         case .region: return .defaultRegion
         case .fullscreen: return .defaultFullscreen
-        case .window: return ShortcutService.Shortcut(keyCode: 0, modifiers: 0, enabled: false)
+        case .window: return .defaultWindow
         case .ocr: return .defaultOCR
         case .colorPicker: return .defaultColorPicker
         case .recording: return .defaultRecording
         }
-    }
-
-    private var shortcutDisplayString: String {
-        guard let s = shortcut else { return "—" }
-        var parts: [String] = []
-        if s.modifiers & UInt32(cmdKey) != 0 { parts.append("\u{2318}") }
-        if s.modifiers & UInt32(shiftKey) != 0 { parts.append("\u{21E7}") }
-        if s.modifiers & UInt32(optionKey) != 0 { parts.append("\u{2325}") }
-        if s.modifiers & UInt32(controlKey) != 0 { parts.append("\u{2303}") }
-        parts.append(keyCodeToString(s.keyCode))
-        return parts.joined()
     }
 }
 
@@ -905,26 +1349,40 @@ final class ShortcutRecorderNSView: NSView {
     override func flagsChanged(with event: NSEvent) {}
 }
 
-private func keyCodeToString(_ code: UInt32) -> String {
-    let map: [UInt32: String] = [
-        0x00: "A", 0x01: "S", 0x02: "D", 0x03: "F",
-        0x04: "H", 0x05: "G", 0x06: "Z", 0x07: "X",
-        0x08: "C", 0x09: "V", 0x0B: "B", 0x0C: "Q",
-        0x0D: "W", 0x0E: "E", 0x0F: "R", 0x10: "Y",
-        0x11: "T", 0x12: "1", 0x13: "2", 0x14: "3",
-        0x15: "4", 0x17: "5", 0x16: "6", 0x1A: "7",
-        0x1C: "8", 0x19: "9", 0x1D: "0", 0x1E: "]",
-        0x1F: "O", 0x20: "U", 0x21: "[", 0x22: "I",
-        0x23: "P", 0x25: "L", 0x26: "J", 0x28: "K",
-        0x2C: "/", 0x2D: "N", 0x2E: "M",
-    ]
-    return map[code] ?? "?"
+// MARK: - History
+
+struct HistorySettingsTab: View {
+    private enum Kind: String, CaseIterable, Identifiable {
+        case screenshots = "Screenshots"
+        case recordings = "Recordings"
+        var id: String { rawValue }
+    }
+
+    @State private var kind: Kind = .screenshots
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("History", selection: $kind) {
+                ForEach(Kind.allCases) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .padding(.vertical, 12)
+
+            switch kind {
+            case .screenshots: HistoryTab()
+            case .recordings: VideosTab()
+            }
+        }
+    }
 }
 
 // MARK: - History (Screenshots only)
 
 struct HistoryTab: View {
     @State private var thumbnails: [String: NSImage] = [:]
+    @State private var isConfirmingClear = false
 
     private var screenshots: [CaptureRecord] {
         HistoryStore.shared.records.filter { $0.kind == .screenshot }
@@ -939,8 +1397,7 @@ struct HistoryTab: View {
                 HStack {
                     Spacer()
                     Button(role: .destructive) {
-                        thumbnails.removeAll()
-                        screenshots.forEach { HistoryStore.shared.deleteRecord($0) }
+                        isConfirmingClear = true
                     } label: {
                         Label("Clear All", systemImage: "trash")
                             .font(.caption)
@@ -949,6 +1406,15 @@ struct HistoryTab: View {
                     .foregroundStyle(.red)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
+                    .alert("Clear all screenshots?", isPresented: $isConfirmingClear) {
+                        Button("Clear All", role: .destructive) {
+                            thumbnails.removeAll()
+                            screenshots.forEach { HistoryStore.shared.deleteRecord($0) }
+                        }
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("Every screenshot in the history and its file is deleted. This can't be undone.")
+                    }
                 }
 
                 List {
@@ -1027,6 +1493,7 @@ struct HistoryTab: View {
 
 struct VideosTab: View {
     @State private var thumbnails: [String: NSImage] = [:]
+    @State private var isConfirmingClear = false
 
     private var recordings: [CaptureRecord] {
         HistoryStore.shared.records.filter { $0.kind == .recording }
@@ -1041,8 +1508,7 @@ struct VideosTab: View {
                 HStack {
                     Spacer()
                     Button(role: .destructive) {
-                        thumbnails.removeAll()
-                        recordings.forEach { HistoryStore.shared.deleteRecord($0) }
+                        isConfirmingClear = true
                     } label: {
                         Label("Clear All", systemImage: "trash")
                             .font(.caption)
@@ -1051,6 +1517,15 @@ struct VideosTab: View {
                     .foregroundStyle(.red)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
+                    .alert("Clear all recordings?", isPresented: $isConfirmingClear) {
+                        Button("Clear All", role: .destructive) {
+                            thumbnails.removeAll()
+                            recordings.forEach { HistoryStore.shared.deleteRecord($0) }
+                        }
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("Every recording in the history and its file is deleted. This can't be undone.")
+                    }
                 }
 
                 List {
@@ -1132,14 +1607,286 @@ struct VideosTab: View {
 
 // MARK: - About
 
-struct AboutTab: View {
-    private let updater = AppUpdater.shared
+struct WatermarkSettingsTab: View {
+    @State private var store = WatermarkStore.shared
+    @State private var selectedPresetID: UUID?
+    
+    // Form state (bound to the currently selected preset editing copy)
+    @State private var name: String = ""
+    @State private var type: WatermarkType = .text
+    @State private var textContent: String = ""
+    @State private var fontName: String = "Helvetica"
+    @State private var fontSize: Double = 36.0
+    @State private var fontColor: AnnotationSwatch = .white
+    @State private var imagePath: String? = nil
+    @State private var opacity: Double = 0.8
+    @State private var position: WatermarkPosition = .bottomRight
+    @State private var rotationDegrees: Double = 0.0
+    @State private var scale: Double = 0.2
 
+    var body: some View {
+        HStack(spacing: 0) {
+            // Left list
+            VStack(spacing: 0) {
+                List(store.presets, id: \.id, selection: $selectedPresetID) { preset in
+                    Text(preset.name)
+                        .font(.system(size: 13, weight: .medium))
+                        .tag(preset.id)
+                }
+                .listStyle(.inset)
+                
+                Divider()
+                
+                // Bottom control
+                HStack(spacing: 12) {
+                    Button(action: createNewPreset) {
+                        Image(systemName: "plus")
+                        Text("Add")
+                    }
+                    .buttonStyle(.borderless)
+                    
+                    Spacer()
+                    
+                    if let selectedPreset = selectedPreset {
+                        Button(role: .destructive) {
+                            deletePreset(selectedPreset)
+                        } label: {
+                            Image(systemName: "trash")
+                            Text("Delete")
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
+                .padding(10)
+            }
+            .frame(width: 200)
+            .background(Color(NSColor.controlBackgroundColor))
+            
+            Divider()
+            
+            // Right detail form
+            if let selectedPresetID = selectedPresetID {
+                ScrollView {
+                    Form {
+                        Section("Preset Name") {
+                            TextField("Name", text: $name)
+                                .textFieldStyle(.roundedBorder)
+                        }
+                        
+                        Section("Type") {
+                            Picker("Type", selection: $type) {
+                                ForEach(WatermarkType.allCases, id: \.self) { t in
+                                    Text(t.rawValue).tag(t)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                        }
+                        
+                        if type == .text {
+                            Section("Text Content") {
+                                TextField("Text", text: $textContent)
+                                    .textFieldStyle(.roundedBorder)
+                                
+                                Picker("Font", selection: $fontName) {
+                                    Text("Helvetica").tag("Helvetica")
+                                    Text("Arial").tag("Arial")
+                                    Text("Courier").tag("Courier")
+                                    Text("SF Pro").tag("SF Pro")
+                                    Text("System Monospaced").tag("System Monospaced")
+                                }
+                                
+                                Slider(value: $fontSize, in: 8.0...72.0, step: 1.0) {
+                                    Text("Font Size (\(Int(fontSize)) pt)")
+                                }
+                                
+                                Text("Color")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.top, 4)
+                                
+                                HStack(spacing: 8) {
+                                    ForEach(AnnotationSwatch.allCases) { swatch in
+                                        Button {
+                                            fontColor = swatch
+                                        } label: {
+                                            Circle()
+                                                .fill(swatch.color)
+                                                .frame(width: 16, height: 16)
+                                                .overlay(Circle().stroke(Color.primary.opacity(0.15), lineWidth: 0.5))
+                                                .overlay {
+                                                    if fontColor == swatch {
+                                                        Circle()
+                                                            .stroke(Color.accentColor, lineWidth: 1.5)
+                                                            .frame(width: 22, height: 22)
+                                                    }
+                                                }
+                                        }
+                                        .buttonStyle(.plain)
+                                        .frame(width: 22, height: 22)
+                                    }
+                                }
+                            }
+                        } else {
+                            Section("Watermark Image") {
+                                if let imagePath = imagePath {
+                                    let url = store.resolveImagePath(for: imagePath)
+                                    if let nsImage = NSImage(contentsOf: url) {
+                                        Image(nsImage: nsImage)
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                            .frame(maxHeight: 80)
+                                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                                            .shadow(radius: 2)
+                                    }
+                                } else {
+                                    VStack(spacing: 8) {
+                                        Image(systemName: "photo")
+                                            .font(.system(size: 24))
+                                            .foregroundStyle(.tertiary)
+                                        Text("No Image Selected")
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 80)
+                                }
+                                
+                                Button("Choose Image File...") {
+                                    chooseImageFile()
+                                }
+                            }
+                        }
+                        
+                        Section("Position & Size") {
+                            Picker("Position", selection: $position) {
+                                ForEach(WatermarkPosition.allCases, id: \.self) { pos in
+                                    Text(pos.rawValue).tag(pos)
+                                }
+                            }
+                            
+                            Slider(value: $scale, in: 0.05...0.6, step: 0.01) {
+                                Text("Scale (\(Int(scale * 100))%)")
+                            }
+                            
+                            Slider(value: $opacity, in: 0.1...1.0, step: 0.05) {
+                                Text("Opacity (\(Int(opacity * 100))%)")
+                            }
+                            
+                            Slider(value: $rotationDegrees, in: -180.0...180.0, step: 5.0) {
+                                Text("Rotation (\(Int(rotationDegrees))°)")
+                            }
+                        }
+                    }
+                    .padding(20)
+                    .onChange(of: name) { saveCurrentChanges() }
+                    .onChange(of: type) { saveCurrentChanges() }
+                    .onChange(of: textContent) { saveCurrentChanges() }
+                    .onChange(of: fontName) { saveCurrentChanges() }
+                    .onChange(of: fontSize) { saveCurrentChanges() }
+                    .onChange(of: fontColor) { saveCurrentChanges() }
+                    .onChange(of: imagePath) { saveCurrentChanges() }
+                    .onChange(of: opacity) { saveCurrentChanges() }
+                    .onChange(of: position) { saveCurrentChanges() }
+                    .onChange(of: rotationDegrees) { saveCurrentChanges() }
+                    .onChange(of: scale) { saveCurrentChanges() }
+                }
+            } else {
+                VStack(spacing: 8) {
+                    Image(systemName: "stamp")
+                        .font(.system(size: 32))
+                        .foregroundStyle(.tertiary)
+                    Text("No Preset Selected")
+                        .font(.headline)
+                    Text("Select an existing watermark preset or add a new one to customize.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            if selectedPresetID == nil && !store.presets.isEmpty {
+                selectedPresetID = store.presets.first?.id
+            }
+            loadPresetState()
+        }
+        .onChange(of: selectedPresetID) { _, _ in
+            loadPresetState()
+        }
+    }
+    
+    private var selectedPreset: WatermarkPreset? {
+        store.presets.first { $0.id == selectedPresetID }
+    }
+    
+    private func loadPresetState() {
+        guard let preset = selectedPreset else { return }
+        name = preset.name
+        type = preset.type
+        textContent = preset.textContent ?? ""
+        fontName = preset.fontName
+        fontSize = preset.fontSize
+        fontColor = preset.fontColor
+        imagePath = preset.imagePath
+        opacity = preset.opacity
+        position = preset.position
+        rotationDegrees = preset.rotationDegrees
+        scale = preset.scale
+    }
+    
+    private func saveCurrentChanges() {
+        guard let preset = selectedPreset else { return }
+        var updated = preset
+        updated.name = name
+        updated.type = type
+        updated.textContent = textContent.isEmpty ? nil : textContent
+        updated.fontName = fontName
+        updated.fontSize = fontSize
+        updated.fontColor = fontColor
+        updated.imagePath = imagePath
+        updated.opacity = opacity
+        updated.position = position
+        updated.rotationDegrees = rotationDegrees
+        updated.scale = scale
+        
+        store.updatePreset(updated)
+    }
+    
+    private func createNewPreset() {
+        let newPreset = WatermarkPreset(name: "New Preset", type: .text, textContent: "My Watermark")
+        store.addPreset(newPreset)
+        selectedPresetID = newPreset.id
+    }
+    
+    private func deletePreset(_ preset: WatermarkPreset) {
+        store.deletePreset(preset)
+        selectedPresetID = store.presets.first?.id
+    }
+    
+    private func chooseImageFile() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.png, .jpeg]
+        
+        if panel.runModal() == .OK, let url = panel.url {
+            if let relativeFilename = store.importWatermarkImage(from: url) {
+                imagePath = relativeFilename
+                saveCurrentChanges()
+            }
+        }
+    }
+}
+
+struct AboutTab: View {
+    @State private var showingCoffeeSheet = false
+    
     private var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
-    }
-    private var build: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
     }
 
     private var appIcon: NSImage? {
@@ -1163,57 +1910,73 @@ struct AboutTab: View {
                     }
 
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("BetterShot")
+                        Text("Shotly")
                             .font(.system(size: 20, weight: .bold))
 
                         Text("Version \(version)")
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
 
-                        Text("A native screenshot and editor tool for macOS.")
+                        Text("Capture, edit, and share screenshots — fast.")
                             .font(.system(size: 12))
                             .foregroundStyle(.tertiary)
                     }
                 }
                 .padding(.bottom, 20)
 
-                // Updates section
                 aboutSection("Updates") {
-                    updateContent
+                    UpdateSettingsSection()
                 }
 
-                // Project section
-                aboutSection("Project") {
+                aboutSection("About") {
+                    Text("Shotly is a screenshot and screen recording tool for macOS, built for quick capture, clean annotation, and effortless sharing.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(2)
+                }
+
+                aboutSection("Welcome Guide") {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("BetterShot is an open-source screenshot tool for capturing, editing and beautifying screenshots on macOS.")
+                        Text("Need a quick guide on how to capture, edit, or record your screen?")
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
                             .lineSpacing(2)
 
-                        Link("GitHub", destination: URL(string: "https://github.com/KartikLabhshetwar/better-shot")!)
-                            .font(.system(size: 12))
+                        Button("Show Welcome Guide") {
+                            OnboardingWindowController.shared.open()
+                        }
+                        .controlSize(.small)
                     }
                 }
 
-                // Credits section
-                aboutSection("Credits") {
+                aboutSection("Upgraded by") {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Built by Kartik Labhshetwar")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-
-                        Link(destination: URL(string: "https://x.com/code_kartik")!) {
-                            HStack(spacing: 2) {
-                                Text("Follow on X")
-                                    .font(.system(size: 12))
-                                Image(systemName: "arrow.up.right")
-                                    .font(.system(size: 9, weight: .semibold))
-                            }
+                        HStack(spacing: 4) {
+                            Text("Anh Nguyễn -")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                            Link("Facebook", destination: URL(string: "https://www.facebook.com/anh2610/")!)
+                                .font(.system(size: 12))
                         }
+                        
+                        Button("☕ Buy Me a Coffee") {
+                            showingCoffeeSheet = true
+                        }
+                        .controlSize(.small)
                     }
+                }
+
+                aboutSection("Credits") {
+                    Text("Based on Better Shot, an open-source project by Kartik Labhshetwar.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(2)
                 }
             }
             .padding(24)
+        }
+        .sheet(isPresented: $showingCoffeeSheet) {
+            BuyMeACoffeeSheet()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
@@ -1230,94 +1993,66 @@ struct AboutTab: View {
         }
     }
 
-    @ViewBuilder
-    private var updateContent: some View {
+}
+
+// MARK: - Updates
+
+private struct UpdateSettingsSection: View {
+    @State private var updater = AppUpdater.shared
+    @AppStorage(AppUpdater.automaticChecksKey) private var checksAutomatically = true
+
+    private var isBusy: Bool {
         switch updater.state {
-        case .idle:
-            Button("Check for Updates...") {
-                Task { await updater.checkForUpdates() }
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
+        case .checking, .downloading, .installing: return true
+        default: return false
+        }
+    }
 
-        case .checking:
-            HStack(spacing: 8) {
-                ProgressView()
-                    .controlSize(.small)
-                Text("Checking for updates...")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-            }
-
-        case .available(let newVersion, let url):
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Version \(newVersion) is available!")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.green)
-
-                Button("Download & Install") {
-                    Task { await updater.downloadAndInstall(version: newVersion, url: url) }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Button("Check for Updates") {
+                    Task { await updater.checkForUpdates(userInitiated: true) }
                 }
-                .buttonStyle(.borderedProminent)
                 .controlSize(.small)
+                .disabled(isBusy)
+
+                status
             }
 
-        case .downloading(let progress):
-            VStack(alignment: .leading, spacing: 6) {
-                ProgressView(value: progress)
-                    .progressViewStyle(.linear)
-                    .frame(maxWidth: 220)
-
-                Text("Downloading… \(Int(progress * 100))%")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-
-                Button("Cancel") {
-                    updater.cancelDownload()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.mini)
-            }
-
-        case .readyToInstall(let newVersion, let dmgPath):
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Version \(newVersion) downloaded")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.green)
-
-                Button("Install & Relaunch") {
-                    Task { await updater.installUpdate(dmgPath: dmgPath) }
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-            }
-
-        case .installing:
-            HStack(spacing: 8) {
-                ProgressView()
-                    .controlSize(.small)
-                Text("Installing update…")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-            }
-
-        case .upToDate:
-            Label("You're up to date", systemImage: "checkmark.circle.fill")
+            Toggle("Check for updates automatically", isOn: $checksAutomatically)
+                .toggleStyle(.checkbox)
                 .font(.system(size: 12))
-                .foregroundStyle(.green)
+        }
+    }
 
-        case .failed(let message):
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Update failed: \(message)")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.red)
-
-                Button("Retry") {
-                    Task { await updater.checkForUpdates() }
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+    @ViewBuilder
+    private var status: some View {
+        switch updater.state {
+        case .checking:
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.small)
+                Text("Checking…")
             }
+            .font(.system(size: 12))
+            .foregroundStyle(.secondary)
+        case .upToDate:
+            Text("Shotly \(updater.currentVersion) is the latest version.")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+        case .available(let manifest), .installing(let manifest), .downloading(let manifest, _):
+            Button("Version \(manifest.version) available…") {
+                UpdateWindowController.shared.show()
+            }
+            .buttonStyle(.link)
+            .font(.system(size: 12))
+        case .failed(let message):
+            Text(message)
+                .font(.system(size: 12))
+                .foregroundStyle(.red)
+                .fixedSize(horizontal: false, vertical: true)
+        case .idle:
+            EmptyView()
         }
     }
 }

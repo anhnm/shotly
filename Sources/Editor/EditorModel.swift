@@ -7,9 +7,22 @@ final class EditorModel {
     var sourceImage: CGImage?
     var sourceURL: URL?
     var previewImage: NSImage?
+    var collageState: CollageState?
+    var selectedCollageSlotID: CollageSlot.ID?
     var imageSize: CGSize = .zero
     var config = BeautifierConfig.default
     var toastMessage: String?
+    var captureMetadata: CaptureMetadata?
+    var showMetadata: Bool = AppPreferences.showMetadata {
+        didSet {
+            AppPreferences.showMetadata = showMetadata
+        }
+    }
+    var activeWatermarkPreset: WatermarkPreset? {
+        didSet {
+            AppPreferences.lastWatermarkPresetID = activeWatermarkPreset?.id.uuidString
+        }
+    }
 
     // Annotation state
     var items: [AnnotationItem] = []
@@ -33,6 +46,7 @@ final class EditorModel {
     var selectedTool: AnnotationTool = .select
     var selectedSwatch: AnnotationSwatch = .red
     var strokeWidth: CGFloat = 4
+    var shapeStyle: AnnotationShapeStyle = .sharp
     var redactionDensity: CGFloat = 0.55
 
     var textFontName: String = AnnotationTextMetrics.defaultFontName
@@ -46,6 +60,20 @@ final class EditorModel {
     var cropRect = CGRect(x: 0, y: 0, width: 1, height: 1)
     var hasCrop: Bool { cropRect != CGRect(x: 0, y: 0, width: 1, height: 1) }
     func resetCrop() { cropRect = CGRect(x: 0, y: 0, width: 1, height: 1) }
+
+    // MARK: - Viewport (see EditorModel+Viewport.swift)
+
+    /// Zoom relative to the fit-to-window size; 1 means fit.
+    var zoomScale: CGFloat = 1
+    /// Offset of the canvas center from the viewport center, in view points.
+    var panOffset: CGSize = .zero
+    var viewportMetrics = EditorViewportMetrics()
+    var isSpacePanning = false
+    var hoveredPixel: EditorHoveredPixel?
+    /// Cursor position relative to the viewport center, used as the zoom anchor for keyboard zoom.
+    @ObservationIgnored var hoverAnchor: CGPoint?
+    /// The image before the first resize, so the user can revert.
+    var imageBeforeResize: CGImage?
 
     private var interaction: AnnotationInteraction?
     var history = AnnotationHistory()
@@ -90,8 +118,43 @@ final class EditorModel {
         return selectedItems.contains { $0.tool.isRedactionTool || $0.tool == .spotlight }
     }
 
+    var isRedactionControlsVisible: Bool {
+        inspectedTool?.isRedactionTool == true
+    }
+
+    var activeRedactionTool: AnnotationTool {
+        if let inspectedTool, inspectedTool.isRedactionTool {
+            return inspectedTool
+        }
+        return selectedTool.isRedactionTool ? selectedTool : .blur
+    }
+
     var isTextStyleAvailable: Bool {
         selectedTool == .text || selectedTextItem != nil
+    }
+
+    var hasContextualStyleControls: Bool {
+        guard let inspectedTool else { return false }
+        return inspectedTool.usesColorStyle
+            || inspectedTool.usesStrokeStyle
+            || inspectedTool.usesDensityStyle
+            || inspectedTool.usesTextStyle
+    }
+
+    var showsColorControl: Bool {
+        inspectedTool?.usesColorStyle == true
+    }
+
+    var showsStrokeControl: Bool {
+        inspectedTool?.usesStrokeStyle == true
+    }
+
+    var showsSpotlightDensityControl: Bool {
+        inspectedTool?.isSpotlightTool == true
+    }
+
+    var showsTextControl: Bool {
+        inspectedTool?.usesTextStyle == true
     }
 
     // MARK: - Load
@@ -104,9 +167,74 @@ final class EditorModel {
         sourceImage = image
         imageSize = CGSize(width: image.width, height: image.height)
         previewImage = NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
+        resetViewport()
+        imageBeforeResize = nil
+
+        let stem = rawURL.deletingPathExtension().lastPathComponent.replacingOccurrences(of: ".base", with: "")
+        captureMetadata = HistoryStore.shared.records.first(where: {
+            let recordStem = URL(fileURLWithPath: $0.filename).deletingPathExtension().lastPathComponent
+            let beautifiedStem = $0.beautifiedPath != nil ? URL(fileURLWithPath: $0.beautifiedPath!).deletingPathExtension().lastPathComponent : ""
+            return recordStem == stem || beautifiedStem == stem
+        })?.metadata
 
         config = AppPreferences.defaultBeautifierConfig
 
+        if let lastID = AppPreferences.lastWatermarkPresetID,
+           let preset = WatermarkStore.shared.presets.first(where: { $0.id.uuidString == lastID }) {
+            activeWatermarkPreset = preset
+        } else {
+            activeWatermarkPreset = nil
+        }
+
+        items = []
+
+        if AppPreferences.smartBlurEnabled {
+            Task {
+                let rects = await SmartBlurDetector.detectSensitiveRects(in: image)
+                await MainActor.run {
+                    guard self.sourceURL == rawURL else { return }
+                    for rect in rects {
+                        self.items.append(AnnotationItem(
+                            tool: .blur,
+                            rect: rect,
+                            swatch: .black,
+                            strokeWidth: 2.0,
+                            redactionDensity: 0.55
+                        ))
+                    }
+                }
+            }
+        }
+        draftItem = nil
+        selectedItemIDs = []
+        editingTextItemID = nil
+        isTextPlacementArmed = selectedTool == .text
+        selectionRect = nil
+        interaction = nil
+        nextNumberedCircleValue = 1
+        history.reset()
+        RedactionImageProcessor.removeAllCachedPreviewImages()
+        statePath = AnnotationToolState.idle.path(for: selectedTool)
+    }
+
+    func loadCollage(_ collage: CollageState) {
+        self.collageState = collage
+        self.selectedCollageSlotID = collage.slots.first?.id
+        recalculateCollageCanvasSize()
+        self.sourceImage = nil
+        self.sourceURL = nil
+        self.previewImage = nil
+        self.captureMetadata = nil
+        resetViewport()
+        imageBeforeResize = nil
+        
+        var collageConfig = BeautifierConfig.default
+        collageConfig.style = .none
+        collageConfig.padding = 0
+        collageConfig.cornerRadius = 0
+        collageConfig.shadowStrength = 0
+        collageConfig.aspectRatio = .auto
+        config = collageConfig
         items = []
         draftItem = nil
         selectedItemIDs = []
@@ -118,6 +246,154 @@ final class EditorModel {
         history.reset()
         RedactionImageProcessor.removeAllCachedPreviewImages()
         statePath = AnnotationToolState.idle.path(for: selectedTool)
+    }
+
+    // MARK: - Collage
+
+    var collageImageCount: Int { collageState?.slots.count ?? 0 }
+    var canAddCollageImages: Bool { collageImageCount < 4 }
+    var selectedCollageSlotIndex: Int? {
+        guard let selectedCollageSlotID else { return nil }
+        return collageState?.slots.firstIndex(where: { $0.id == selectedCollageSlotID })
+    }
+    var selectedCollageZoom: CGFloat {
+        guard let index = selectedCollageSlotIndex,
+              let collage = collageState,
+              collage.slots.indices.contains(index) else { return 1 }
+        return collage.slots[index].zoomScale
+    }
+
+    func selectCollageSlot(_ id: CollageSlot.ID) {
+        guard collageState?.slots.contains(where: { $0.id == id }) == true else { return }
+        selectedCollageSlotID = id
+    }
+
+    func setSelectedCollageZoom(_ zoom: CGFloat) {
+        guard var collage = collageState,
+              let index = selectedCollageSlotIndex,
+              collage.slots.indices.contains(index) else { return }
+        collage.slots[index].zoomScale = max(0.5, min(5, zoom))
+        collageState = collage
+    }
+
+    func setCollageLayout(_ layout: CollageLayoutType) {
+        guard var collage = collageState else { return }
+        collage.layoutType = layout
+        collageState = collage
+        resetCrop()
+        recalculateCollageCanvasSize()
+    }
+
+    func setCollageSpacing(_ spacing: CGFloat) {
+        guard var collage = collageState else { return }
+        collage.spacing = max(0, min(80, spacing))
+        collageState = collage
+    }
+
+    func setCollageLocked(_ isLocked: Bool) {
+        guard var collage = collageState else { return }
+        collage.isLocked = isLocked
+        collageState = collage
+    }
+
+    func addCollageImages(_ images: [NSImage]) {
+        guard var collage = collageState, !images.isEmpty else { return }
+        let remaining = max(0, 4 - collage.slots.count)
+        guard remaining > 0 else { return }
+        let newSlots = images.prefix(remaining).map { image in
+            CollageSlot(image: image)
+        }
+        collage.slots.append(contentsOf: newSlots)
+        collageState = collage
+        if selectedCollageSlotID == nil {
+            selectedCollageSlotID = newSlots.first?.id
+        }
+        recalculateCollageCanvasSize()
+    }
+
+    func removeCollageImage(at index: Int) {
+        guard var collage = collageState,
+              collage.slots.indices.contains(index),
+              collage.slots.count > 2 else { return }
+        let removedID = collage.slots[index].id
+        collage.slots.remove(at: index)
+        collageState = collage
+        if selectedCollageSlotID == removedID {
+            selectedCollageSlotID = collage.slots.first?.id
+        }
+        recalculateCollageCanvasSize()
+    }
+
+    func moveCollageImage(from index: Int, by offset: Int) {
+        guard var collage = collageState else { return }
+        let destination = index + offset
+        guard collage.slots.indices.contains(index),
+              collage.slots.indices.contains(destination) else { return }
+        collage.slots.swapAt(index, destination)
+        collageState = collage
+    }
+
+    func resetCollageFraming() {
+        guard var collage = collageState else { return }
+        for index in collage.slots.indices {
+            collage.slots[index].panOffset = .zero
+            collage.slots[index].zoomScale = 1
+        }
+        collageState = collage
+    }
+
+    @discardableResult
+    func finalizeCollage() -> Bool {
+        guard let flattened = renderCleanCollage() else { return false }
+
+        AnalyticsService.track(.collageCreated, properties: [
+            "image_count": "\(collageState?.slots.count ?? 0)",
+            "layout": collageState?.layoutType.rawValue ?? "unknown",
+        ])
+
+        sourceImage = flattened
+        previewImage = NSImage(
+            cgImage: flattened,
+            size: NSSize(width: flattened.width, height: flattened.height)
+        )
+        imageSize = CGSize(width: flattened.width, height: flattened.height)
+        sourceURL = nil
+        collageState = nil
+        selectedCollageSlotID = nil
+        resetViewport()
+
+        items = []
+        draftItem = nil
+        selectedItemIDs = []
+        editingTextItemID = nil
+        selectionRect = nil
+        interaction = nil
+        selectedTool = .select
+        isTextPlacementArmed = false
+        resetCrop()
+        history.reset()
+        statePath = AnnotationToolState.idle.path(for: selectedTool)
+        return true
+    }
+
+    private func recalculateCollageCanvasSize() {
+        guard let collage = collageState,
+              let firstImage = collage.slots.first?.image,
+              let cgFirst = firstImage.bestCGImage() else {
+            imageSize = .zero
+            return
+        }
+
+        let width = CGFloat(cgFirst.width)
+        let height = CGFloat(cgFirst.height)
+        switch collage.layoutType {
+        case .vertical:
+            imageSize = CGSize(width: width, height: height * CGFloat(collage.slots.count))
+        case .horizontal:
+            imageSize = CGSize(width: width * CGFloat(collage.slots.count), height: height)
+        case .grid2x2:
+            imageSize = CGSize(width: width * 2, height: height * 2)
+        }
     }
 
     // MARK: - Config Updates
@@ -167,6 +443,7 @@ final class EditorModel {
     // MARK: - Interaction Pipeline
 
     func beginInteraction(at location: CGPoint, imageFrame: CGRect, boundaryFrame: CGRect) {
+        guard collageState == nil else { return }
         let isExtendingSelection = isMultiSelectionModifierPressed
 
         guard let point = normalizedPoint(location, in: imageFrame, boundedBy: boundaryFrame, clamped: false) else {
@@ -195,6 +472,7 @@ final class EditorModel {
     }
 
     func updateInteraction(to location: CGPoint, imageFrame: CGRect, boundaryFrame: CGRect) {
+        guard collageState == nil else { return }
         guard let interaction,
               let point = normalizedPoint(location, in: imageFrame, boundedBy: boundaryFrame, clamped: true) else { return }
         let allowedBounds = annotationBounds(for: imageFrame, boundaryFrame: boundaryFrame)
@@ -219,6 +497,11 @@ final class EditorModel {
     }
 
     func endInteraction(at location: CGPoint, imageFrame: CGRect, boundaryFrame: CGRect) {
+        guard collageState == nil else {
+            interaction = nil
+            draftItem = nil
+            return
+        }
         defer { interaction = nil }
 
         guard let interaction,
@@ -264,7 +547,9 @@ final class EditorModel {
     // MARK: - Tool Actions
 
     func selectTool(_ tool: AnnotationTool) {
+        guard collageState == nil else { return }
         selectedTool = tool
+        AnalyticsService.track(.editorToolUsed, properties: ["tool": tool.rawValue])
         editingTextItemID = nil
         isTextPlacementArmed = tool == .text
         statePath = AnnotationToolState.idle.path(for: tool)
@@ -279,13 +564,67 @@ final class EditorModel {
         if var d = draftItem { d.swatch = swatch; draftItem = d }
     }
 
-    func setStrokeWidth(_ strokeWidth: CGFloat) {
+    /// `registersUndo` is false for the intermediate values of a slider drag, so one
+    /// drag becomes a single undo step (the caller registers it when the drag starts).
+    func setStrokeWidth(_ strokeWidth: CGFloat, registersUndo: Bool = true) {
         self.strokeWidth = strokeWidth
         if !selectedItemIDs.isEmpty {
-            history.push(items)
+            if registersUndo { history.push(items) }
             updateSelectedItems { item in item.strokeWidth = strokeWidth }
         }
         if var d = draftItem { d.strokeWidth = strokeWidth; draftItem = d }
+    }
+
+    func beginStrokeWidthChange() {
+        if !selectedItemIDs.isEmpty { history.push(items) }
+    }
+
+    /// Stroke width of the selection, or the width new annotations will use.
+    var inspectedStrokeWidth: CGFloat {
+        selectedItem?.strokeWidth ?? selectedItems.first?.strokeWidth ?? strokeWidth
+    }
+
+    // MARK: - Rectangle Style
+
+    var showsShapeStyleControl: Bool {
+        inspectedTool == .rectangle || inspectedTool == .filledRectangle
+    }
+
+    var inspectedShapeStyle: AnnotationShapeStyle {
+        selectedItem?.shapeStyle ?? selectedItems.first?.shapeStyle ?? shapeStyle
+    }
+
+    var isInspectedRectangleFilled: Bool {
+        inspectedTool == .filledRectangle
+    }
+
+    /// Picks an outline style. Filled rectangles become outlined ones with that style.
+    func setShapeStyle(_ style: AnnotationShapeStyle) {
+        shapeStyle = style
+        let rectangles = selectedItems.filter { $0.tool == .rectangle || $0.tool == .filledRectangle }
+        if rectangles.isEmpty {
+            if selectedTool == .filledRectangle { selectTool(.rectangle) }
+        } else {
+            history.push(items)
+            updateSelectedItems { item in
+                guard item.tool == .rectangle || item.tool == .filledRectangle else { return }
+                item.tool = .rectangle
+                item.shapeStyle = style
+            }
+        }
+        if var d = draftItem, d.tool == .rectangle { d.shapeStyle = style; draftItem = d }
+    }
+
+    func setRectangleFilled() {
+        let rectangles = selectedItems.filter { $0.tool == .rectangle }
+        if rectangles.isEmpty {
+            selectTool(.filledRectangle)
+        } else {
+            history.push(items)
+            updateSelectedItems { item in
+                if item.tool == .rectangle { item.tool = .filledRectangle }
+            }
+        }
     }
 
     func setRedactionDensity(_ density: CGFloat) {
@@ -295,6 +634,33 @@ final class EditorModel {
             updateSelectedItems { item in item.redactionDensity = density }
         }
         if var d = draftItem { d.redactionDensity = density; draftItem = d }
+    }
+
+    func setRedactionTool(_ tool: AnnotationTool) {
+        guard tool.isRedactionTool else { return }
+
+        let hasSelectedRedaction = items.contains {
+            selectedItemIDs.contains($0.id) && $0.tool.isRedactionTool
+        }
+        let preservesSelectTool = selectedTool == .select && hasSelectedRedaction
+        if hasSelectedRedaction {
+            history.push(items)
+            for index in items.indices where selectedItemIDs.contains(items[index].id) && items[index].tool.isRedactionTool {
+                items[index].tool = tool
+            }
+        }
+
+        if var draftItem, draftItem.tool.isRedactionTool {
+            draftItem.tool = tool
+            self.draftItem = draftItem
+        }
+
+        if !preservesSelectTool {
+            selectedTool = tool
+        }
+        editingTextItemID = nil
+        isTextPlacementArmed = false
+        statePath = AnnotationToolState.idle.path(for: selectedTool)
     }
 
     func deleteSelectedAnnotation() {
@@ -501,11 +867,114 @@ final class EditorModel {
 
     // MARK: - Render
 
+    func renderCleanCollage() -> CGImage? {
+        guard let collage = collageState else { return nil }
+        
+        let w = imageSize.width
+        let h = imageSize.height
+        guard w > 0 && h > 0 else { return nil }
+        
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        guard let ctx = CGContext(
+            data: nil,
+            width: Int(w),
+            height: Int(h),
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+        ) else { return nil }
+        
+        let slotW: CGFloat
+        let slotH: CGFloat
+        
+        let gap = collage.spacing
+
+        switch collage.layoutType {
+        case .vertical:
+            slotW = w
+            slotH = (h - CGFloat(collage.slots.count - 1) * gap) / CGFloat(collage.slots.count)
+        case .horizontal:
+            slotW = (w - CGFloat(collage.slots.count - 1) * gap) / CGFloat(collage.slots.count)
+            slotH = h
+        case .grid2x2:
+            slotW = (w - gap) / 2.0
+            slotH = (h - gap) / 2.0
+        }
+        
+        for (index, slot) in collage.slots.enumerated() {
+            var slotX: CGFloat = 0
+            var slotY: CGFloat = 0
+            
+            switch collage.layoutType {
+            case .vertical:
+                let slotIndexFromBottom = collage.slots.count - 1 - index
+                slotX = 0
+                slotY = CGFloat(slotIndexFromBottom) * (slotH + gap)
+            case .horizontal:
+                slotX = CGFloat(index) * (slotW + gap)
+                slotY = 0
+            case .grid2x2:
+                let col = index % 2
+                let row = index / 2
+                let isTopRow = (row == 0)
+                slotX = CGFloat(col) * (slotW + gap)
+                slotY = isTopRow ? slotH + gap : 0
+            }
+            
+            let rectOfSlot = CGRect(x: slotX, y: slotY, width: slotW, height: slotH)
+            
+            ctx.saveGState()
+            ctx.clip(to: rectOfSlot)
+            
+            if let cgImg = slot.image.bestCGImage() {
+                let imgW = CGFloat(cgImg.width)
+                let imgH = CGFloat(cgImg.height)
+                
+                let wRatio = slotW / imgW
+                let hRatio = slotH / imgH
+                let baseScale = max(wRatio, hRatio)
+                
+                let finalW = imgW * baseScale * slot.zoomScale
+                let finalH = imgH * baseScale * slot.zoomScale
+                
+                let centerX = rectOfSlot.midX + slot.panOffset.x
+                let centerY = rectOfSlot.midY - slot.panOffset.y
+                
+                let drawRect = CGRect(
+                    x: centerX - finalW / 2,
+                    y: centerY - finalH / 2,
+                    width: finalW,
+                    height: finalH
+                )
+                
+                ctx.draw(cgImg, in: drawRect)
+            }
+            
+            ctx.restoreGState()
+        }
+        
+        return ctx.makeImage()
+    }
+
     func renderFinal() -> CGImage? {
-        guard let image = sourceImage else { return nil }
-        let cropped = hasCrop ? cropImage(image) : image
-        let remappedAnnotations = hasCrop ? items.map { $0.remapped(from: cropRect) } : items
-        return BeautifierRenderer.render(image: cropped, config: config, annotations: remappedAnnotations)
+        let cropped: CGImage
+        if let collage = collageState {
+            guard let clean = renderCleanCollage() else { return nil }
+            cropped = clean
+        } else {
+            guard let image = sourceImage else { return nil }
+            cropped = hasCrop ? cropImage(image) : image
+        }
+        let remappedAnnotations = (hasCrop && collageState == nil) ? items.map { $0.remapped(from: cropRect) } : items
+        return BeautifierRenderer.render(
+            image: cropped,
+            config: config,
+            annotations: remappedAnnotations,
+            metadata: captureMetadata,
+            showMetadata: showMetadata,
+            watermarkPreset: activeWatermarkPreset
+        )
     }
 
     private func cropImage(_ image: CGImage) -> CGImage {
@@ -578,7 +1047,8 @@ final class EditorModel {
                 redactionDensity: item.redactionDensity, text: item.text,
                 textLineHeight: item.textLineHeight, fontName: item.fontName,
                 isBold: item.isBold, isItalic: item.isItalic,
-                isUnderline: item.isUnderline, textAlignment: item.textAlignment
+                isUnderline: item.isUnderline, textAlignment: item.textAlignment,
+                shapeStyle: item.shapeStyle
             )
             items.append(duplicate)
             selectedItemID = duplicate.id
@@ -620,7 +1090,7 @@ final class EditorModel {
         case .select: return
         case .text: itemRect = defaultTextRect(at: point, lineHeight: textLineHeight, within: allowedBounds)
         case .numberedCircle: itemRect = AnnotationNumberedCircleMetrics.defaultRect(centeredAt: point, imageSize: imageSize, within: allowedBounds)
-        case .rectangle, .filledRectangle, .ellipse, .line, .arrow, .freehand, .pixelate, .blur, .spotlight:
+        case .rectangle, .filledRectangle, .ellipse, .line, .measure, .arrow, .freehand, .pixelate, .blur, .spotlight:
             itemRect = CGRect(origin: point, size: .zero)
         }
         let itemText = selectedTool == .numberedCircle ? "\(nextNumberedCircleValue)" : ""
@@ -629,7 +1099,8 @@ final class EditorModel {
             tool: selectedTool, rect: itemRect, points: initialPoints(for: selectedTool, at: point),
             swatch: selectedSwatch, strokeWidth: strokeWidth, redactionDensity: redactionDensity,
             text: itemText, textLineHeight: textLineHeight, fontName: textFontName,
-            isBold: textIsBold, isItalic: textIsItalic, isUnderline: textIsUnderline, textAlignment: textAlignment
+            isBold: textIsBold, isItalic: textIsItalic, isUnderline: textIsUnderline, textAlignment: textAlignment,
+            shapeStyle: shapeStyle
         )
         interaction = .drawing(startPoint: point)
         statePath = AnnotationToolState.drawing.path(for: selectedTool)
@@ -641,6 +1112,10 @@ final class EditorModel {
         case .select: break
         case .line:
             draftItem.points = [startPoint, point]
+            draftItem.rect = boundingRect(for: draftItem.points)
+        case .measure:
+            let snappedEnd = AnnotationMeasureMetrics.snappedEnd(from: startPoint, to: point, imageSize: imageSize)
+            draftItem.points = [startPoint, snappedEnd]
             draftItem.rect = boundingRect(for: draftItem.points)
         case .arrow:
             draftItem.points = [startPoint, midpoint(startPoint, point), point]
@@ -794,6 +1269,27 @@ final class EditorModel {
             if originalItem.tool == .arrow, handle == .control {
                 return arrowItem(originalItem, draggingCurveHandleTo: point)
             }
+            if originalItem.tool == .measure,
+               let start = originalItem.points.first,
+               let end = originalItem.points.last {
+                var item = originalItem
+                switch handle {
+                case .start:
+                    item.points = [
+                        AnnotationMeasureMetrics.snappedEnd(from: end, to: point, imageSize: imageSize),
+                        end
+                    ]
+                case .end:
+                    item.points = [
+                        start,
+                        AnnotationMeasureMetrics.snappedEnd(from: start, to: point, imageSize: imageSize)
+                    ]
+                case .control, .topLeft, .topRight, .bottomLeft, .bottomRight:
+                    return originalItem
+                }
+                item.rect = boundingRect(for: item.points)
+                return item
+            }
             return originalItem.withEndpoint(handle, movedTo: point)
         }
         let originalRect = originalItem.bounds
@@ -829,7 +1325,7 @@ final class EditorModel {
     private func initialPoints(for tool: AnnotationTool, at point: CGPoint) -> [CGPoint] {
         switch tool {
         case .select: []
-        case .line: [point, point]
+        case .line, .measure: [point, point]
         case .arrow: [point, point, point]
         case .freehand: [point]
         case .rectangle, .filledRectangle, .ellipse, .numberedCircle, .pixelate, .blur, .spotlight, .text: []

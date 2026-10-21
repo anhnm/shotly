@@ -27,7 +27,17 @@ enum AnnotationDrawing {
                     return
 
                 case .rectangle:
-                    ctx.stroke(renderedRect(item.bounds, in: imageRect, flipped: flipped))
+                    let rect = renderedRect(item.bounds, in: imageRect, flipped: flipped)
+                    let radius = item.shapeStyle.cornerRadius(for: rect, lineWidth: lineWidth)
+                    ctx.saveGState()
+                    if item.shapeStyle == .sharp { ctx.setLineJoin(.miter) }
+                    if let dash = item.shapeStyle.dashPattern(lineWidth: lineWidth) {
+                        ctx.setLineCap(.butt)
+                        ctx.setLineDash(phase: 0, lengths: dash)
+                    }
+                    ctx.addPath(CGPath(roundedRect: rect, cornerWidth: radius, cornerHeight: radius, transform: nil))
+                    ctx.strokePath()
+                    ctx.restoreGState()
 
                 case .filledRectangle:
                     let rect = renderedRect(item.bounds, in: imageRect, flipped: flipped)
@@ -93,6 +103,15 @@ enum AnnotationDrawing {
                     ctx.addLine(to: end)
                     ctx.strokePath()
 
+                case .measure:
+                    drawMeasure(
+                        item,
+                        imageRect: imageRect,
+                        context: ctx,
+                        lineWidth: lineWidth,
+                        flipped: flipped
+                    )
+
                 case .freehand:
                     drawFreehand(points: item.points, imageRect: imageRect, context: ctx, flipped: flipped)
 
@@ -157,6 +176,90 @@ enum AnnotationDrawing {
         context.addLine(to: geometry.tip)
         context.addLine(to: geometry.secondWing)
         context.strokePath()
+    }
+
+    private static func drawMeasure(
+        _ item: AnnotationItem,
+        imageRect: CGRect,
+        context: CGContext,
+        lineWidth: CGFloat,
+        flipped: Bool
+    ) {
+        guard let normalizedStart = item.points.first,
+              let normalizedEnd = item.points.last else { return }
+
+        let start = renderedPoint(normalizedStart, in: imageRect, flipped: flipped)
+        let end = renderedPoint(normalizedEnd, in: imageRect, flipped: flipped)
+        let horizontal = AnnotationMeasureMetrics.isHorizontal(
+            start: normalizedStart,
+            end: normalizedEnd,
+            imageSize: imageRect.size
+        )
+        let capLength = max(12, lineWidth * 3)
+
+        context.beginPath()
+        context.move(to: start)
+        context.addLine(to: end)
+        if horizontal {
+            context.move(to: CGPoint(x: start.x, y: start.y - capLength / 2))
+            context.addLine(to: CGPoint(x: start.x, y: start.y + capLength / 2))
+            context.move(to: CGPoint(x: end.x, y: end.y - capLength / 2))
+            context.addLine(to: CGPoint(x: end.x, y: end.y + capLength / 2))
+        } else {
+            context.move(to: CGPoint(x: start.x - capLength / 2, y: start.y))
+            context.addLine(to: CGPoint(x: start.x + capLength / 2, y: start.y))
+            context.move(to: CGPoint(x: end.x - capLength / 2, y: end.y))
+            context.addLine(to: CGPoint(x: end.x + capLength / 2, y: end.y))
+        }
+        context.strokePath()
+
+        let label = AnnotationMeasureMetrics.label(
+            start: normalizedStart,
+            end: normalizedEnd,
+            imageSize: imageRect.size
+        )
+        let fontSize = max(13, min(28, max(imageRect.width, imageRect.height) / 140))
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: fontSize, weight: .semibold),
+            .foregroundColor: NSColor.white
+        ]
+        let attributedLabel = NSAttributedString(string: label, attributes: attributes)
+        let textSize = attributedLabel.size()
+        let labelSize = CGSize(width: textSize.width + 16, height: textSize.height + 8)
+        let center = AnnotationMeasureMetrics.labelCenter(
+            start: start,
+            end: end,
+            horizontal: horizontal,
+            labelSize: labelSize,
+            capLength: capLength,
+            bounds: imageRect
+        )
+
+        let labelRect = CGRect(
+            x: center.x - labelSize.width / 2,
+            y: center.y - labelSize.height / 2,
+            width: labelSize.width,
+            height: labelSize.height
+        )
+
+        context.saveGState()
+        context.setFillColor(NSColor.black.withAlphaComponent(0.82).cgColor)
+        context.addPath(CGPath(
+            roundedRect: labelRect,
+            cornerWidth: labelRect.height / 2,
+            cornerHeight: labelRect.height / 2,
+            transform: nil
+        ))
+        context.fillPath()
+
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: flipped)
+        attributedLabel.draw(at: CGPoint(
+            x: labelRect.minX + 8,
+            y: labelRect.minY + (labelRect.height - textSize.height) / 2
+        ))
+        NSGraphicsContext.restoreGraphicsState()
+        context.restoreGState()
     }
 
     private static func drawNumberedCircle(_ item: AnnotationItem, in rect: CGRect, context: CGContext, flipped: Bool = false) {

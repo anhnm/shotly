@@ -23,12 +23,17 @@ final class HistoryStore {
 
     // MARK: - Import
 
-    func importCapture(from tempURL: URL, deleteSource: Bool = true, kind: CaptureKind = .screenshot) -> CaptureRecord? {
+    func importCapture(
+        from tempURL: URL,
+        deleteSource: Bool = true,
+        kind: CaptureKind = .screenshot,
+        metadata: CaptureMetadata? = nil
+    ) -> CaptureRecord? {
         let ext = tempURL.pathExtension.isEmpty ? "png" : tempURL.pathExtension
-        var filename = "bettershot_\(Int(Date().timeIntervalSince1970 * 1000)).\(ext)"
+        var filename = "shotly_\(Int(Date().timeIntervalSince1970 * 1000)).\(ext)"
         var destURL = storageDir.appendingPathComponent(filename)
         if FileManager.default.fileExists(atPath: destURL.path) {
-            filename = "bettershot_\(Int(Date().timeIntervalSince1970 * 1000))_\(UUID().uuidString.prefix(6)).\(ext)"
+            filename = "shotly_\(Int(Date().timeIntervalSince1970 * 1000))_\(UUID().uuidString.prefix(6)).\(ext)"
             destURL = storageDir.appendingPathComponent(filename)
         }
 
@@ -57,7 +62,8 @@ final class HistoryStore {
             filename: filename,
             pixelWidth: width,
             pixelHeight: height,
-            kind: kind
+            kind: kind,
+            metadata: metadata
         )
         records.insert(record, at: 0)
         saveRecords()

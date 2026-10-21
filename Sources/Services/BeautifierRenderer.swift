@@ -3,7 +3,14 @@ import AppKit
 
 enum BeautifierRenderer {
 
-    static func render(image: CGImage, config: BeautifierConfig, annotations: [AnnotationItem] = []) -> CGImage? {
+    static func render(
+        image: CGImage,
+        config: BeautifierConfig,
+        annotations: [AnnotationItem] = [],
+        metadata: CaptureMetadata? = nil,
+        showMetadata: Bool = false,
+        watermarkPreset: WatermarkPreset? = nil
+    ) -> CGImage? {
         let imgW = CGFloat(image.width)
         let imgH = CGFloat(image.height)
         let shortEdge = min(imgW, imgH)
@@ -22,10 +29,15 @@ enum BeautifierRenderer {
             }
         }
 
+        let showMeta = showMetadata && metadata != nil
+        let metaFontSize = config.metadataFontSize * (shortEdge / 800.0)
+        let metaHeight = showMeta ? metaFontSize * 2.2 : 0.0
+        let displayCanvasH = canvasH + metaHeight
+
         let totalHPad = canvasW - imgW
         let totalVPad = canvasH - imgH
         let imgX = config.alignment.xFactor * totalHPad
-        let imgY = (1 - config.alignment.yFactor) * totalVPad
+        let imgY = (1 - config.alignment.yFactor) * totalVPad + metaHeight
 
         let baseRadius = config.cornerRadius * shortEdge
         let m = config.alignment.cornerMultipliers
@@ -41,14 +53,14 @@ enum BeautifierRenderer {
         guard let ctx = CGContext(
             data: nil,
             width: Int(canvasW),
-            height: Int(canvasH),
+            height: Int(displayCanvasH),
             bitsPerComponent: 8,
             bytesPerRow: 0,
             space: colorSpace,
             bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
         ) else { return nil }
 
-        let canvasRect = CGRect(x: 0, y: 0, width: canvasW, height: canvasH)
+        let canvasRect = CGRect(x: 0, y: 0, width: canvasW, height: displayCanvasH)
 
         drawBackground(in: ctx, rect: canvasRect, style: config.style, colorSpace: colorSpace)
 
@@ -66,13 +78,13 @@ enum BeautifierRenderer {
 
         if !annotations.isEmpty {
             ctx.saveGState()
-            let ctxH = CGFloat(Int(canvasH))
+            let ctxH = CGFloat(Int(displayCanvasH))
             ctx.translateBy(x: 0, y: ctxH)
             ctx.scaleBy(x: 1, y: -1)
 
             let flippedImgY = config.alignment.yFactor * totalVPad
             let flippedImageRect = CGRect(x: imgX, y: flippedImgY, width: imgW, height: imgH)
-            let flippedCanvasRect = CGRect(x: 0, y: 0, width: canvasW, height: canvasH)
+            let flippedCanvasRect = CGRect(x: 0, y: 0, width: canvasW, height: displayCanvasH)
 
             AnnotationDrawing.draw(
                 annotations,
@@ -83,6 +95,30 @@ enum BeautifierRenderer {
                 flipped: true
             )
             ctx.restoreGState()
+        }
+
+        if showMeta, let metadata = metadata {
+            let text = metadata.displayString
+            let font = NSFont.monospacedSystemFont(ofSize: metaFontSize, weight: .regular)
+            let textColor = config.metadataColor.nsColor
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: font,
+                .foregroundColor: textColor
+            ]
+            let nsStr = text as NSString
+            let textSize = nsStr.size(withAttributes: attrs)
+            let x = (canvasW - textSize.width) / 2
+            let y = (metaHeight - textSize.height) / 2
+
+            NSGraphicsContext.saveGraphicsState()
+            let nsgc = NSGraphicsContext(cgContext: ctx, flipped: false)
+            NSGraphicsContext.current = nsgc
+            nsStr.draw(at: CGPoint(x: x, y: y), withAttributes: attrs)
+            NSGraphicsContext.restoreGraphicsState()
+        }
+
+        if let wm = watermarkPreset {
+            WatermarkRenderer.draw(preset: wm, in: ctx, imageRect: imageRect)
         }
 
         return ctx.makeImage()

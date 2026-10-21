@@ -44,6 +44,12 @@ struct AnnotationItemView: View {
                     .fill(fillStyle)
             } else if item.tool == .numberedCircle {
                 NumberedCircleAnnotationView(item: item, viewBounds: viewBounds)
+            } else if item.tool == .measure {
+                MeasureAnnotationView(
+                    item: item,
+                    imageFrame: imageFrame,
+                    imageSize: originalImageSize
+                )
             } else if item.tool == .text {
                 AnnotationTextItemView(
                     item: item,
@@ -56,7 +62,7 @@ struct AnnotationItemView: View {
                 )
             } else {
                 itemPath
-                    .stroke(item.swatch.color, style: StrokeStyle(lineWidth: item.strokeWidth, lineCap: .round, lineJoin: .round))
+                    .stroke(item.swatch.color, style: outlineStrokeStyle)
             }
 
             if let arrowHeadPath {
@@ -71,6 +77,19 @@ struct AnnotationItemView: View {
         .allowsHitTesting(item.tool == .text && isEditingText)
     }
 
+    /// Rectangles follow their shape style; other outlines keep round caps and joins.
+    private var outlineStrokeStyle: StrokeStyle {
+        guard item.tool == .rectangle else {
+            return StrokeStyle(lineWidth: item.strokeWidth, lineCap: .round, lineJoin: .round)
+        }
+        return StrokeStyle(
+            lineWidth: item.strokeWidth,
+            lineCap: item.shapeStyle == .dashed ? .butt : .round,
+            lineJoin: item.shapeStyle == .sharp ? .miter : .round,
+            dash: item.shapeStyle.dashPattern(lineWidth: item.strokeWidth) ?? []
+        )
+    }
+
     private var itemPath: Path {
         let rect = viewRect(item.bounds)
 
@@ -79,7 +98,8 @@ struct AnnotationItemView: View {
             return Path()
 
         case .rectangle:
-            return Path(rect)
+            let radius = item.shapeStyle.cornerRadius(for: rect, lineWidth: item.strokeWidth)
+            return radius > 0 ? Path(roundedRect: rect, cornerRadius: radius) : Path(rect)
 
         case .filledRectangle:
             return Path(
@@ -107,6 +127,9 @@ struct AnnotationItemView: View {
                 path.addLine(to: end)
             }
             return path
+
+        case .measure:
+            return Path()
 
         case .freehand:
             return freehandPath(points: item.points.map(viewPoint))
@@ -246,6 +269,90 @@ struct AnnotationItemView: View {
 
     private func midpoint(_ lhs: CGPoint, _ rhs: CGPoint) -> CGPoint {
         CGPoint(x: (lhs.x + rhs.x) / 2, y: (lhs.y + rhs.y) / 2)
+    }
+}
+
+private struct MeasureAnnotationView: View {
+    let item: AnnotationItem
+    let imageFrame: CGRect
+    let imageSize: CGSize
+
+    var body: some View {
+        if let normalizedStart = item.points.first,
+           let normalizedEnd = item.points.last {
+            let start = viewPoint(normalizedStart)
+            let end = viewPoint(normalizedEnd)
+            let horizontal = AnnotationMeasureMetrics.isHorizontal(
+                start: normalizedStart,
+                end: normalizedEnd,
+                imageSize: imageSize
+            )
+            let capLength = max(12, item.strokeWidth * 3)
+            let label = AnnotationMeasureMetrics.label(
+                start: normalizedStart,
+                end: normalizedEnd,
+                imageSize: imageSize
+            )
+            let labelSize = renderedLabelSize(label)
+
+            ZStack(alignment: .topLeading) {
+                Path { path in
+                    path.move(to: start)
+                    path.addLine(to: end)
+
+                    if horizontal {
+                        path.move(to: CGPoint(x: start.x, y: start.y - capLength / 2))
+                        path.addLine(to: CGPoint(x: start.x, y: start.y + capLength / 2))
+                        path.move(to: CGPoint(x: end.x, y: end.y - capLength / 2))
+                        path.addLine(to: CGPoint(x: end.x, y: end.y + capLength / 2))
+                    } else {
+                        path.move(to: CGPoint(x: start.x - capLength / 2, y: start.y))
+                        path.addLine(to: CGPoint(x: start.x + capLength / 2, y: start.y))
+                        path.move(to: CGPoint(x: end.x - capLength / 2, y: end.y))
+                        path.addLine(to: CGPoint(x: end.x + capLength / 2, y: end.y))
+                    }
+                }
+                .stroke(
+                    item.swatch.color,
+                    style: StrokeStyle(lineWidth: item.strokeWidth, lineCap: .round, lineJoin: .round)
+                )
+
+                Text(label)
+                .font(.system(size: labelFontSize, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(.black.opacity(0.82), in: Capsule())
+                .fixedSize()
+                .position(AnnotationMeasureMetrics.labelCenter(
+                    start: start,
+                    end: end,
+                    horizontal: horizontal,
+                    labelSize: labelSize,
+                    capLength: capLength,
+                    bounds: imageFrame
+                ))
+            }
+            .allowsHitTesting(false)
+        }
+    }
+
+    private var labelFontSize: CGFloat {
+        max(11, min(16, item.strokeWidth * 2.2 + 5))
+    }
+
+    private func viewPoint(_ point: CGPoint) -> CGPoint {
+        CGPoint(
+            x: imageFrame.minX + point.x * imageFrame.width,
+            y: imageFrame.minY + point.y * imageFrame.height
+        )
+    }
+
+    private func renderedLabelSize(_ label: String) -> CGSize {
+        let font = NSFont.monospacedDigitSystemFont(ofSize: labelFontSize, weight: .semibold)
+        let textSize = NSAttributedString(string: label, attributes: [.font: font]).size()
+        return CGSize(width: textSize.width + 16, height: textSize.height + 8)
     }
 }
 

@@ -1,6 +1,6 @@
 name: BetterShot
 options:
-  bundleIdPrefix: com.bettershot
+  bundleIdPrefix: com.shotly
   deploymentTarget:
     macOS: "14.0"
   xcodeVersion: "16.0"
@@ -25,12 +25,12 @@ targets:
         buildPhase: resources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.bettershot.app
-        PRODUCT_NAME: BetterShot
+        PRODUCT_BUNDLE_IDENTIFIER: com.shotly.app
+        PRODUCT_NAME: Shotly
         INFOPLIST_FILE: Resources/Info.plist
         CODE_SIGN_ENTITLEMENTS: Resources/BetterShot.entitlements
-        MARKETING_VERSION: "0.3.7"
-        CURRENT_PROJECT_VERSION: "10"
+        MARKETING_VERSION: "2.0"
+        CURRENT_PROJECT_VERSION: "34"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_HARDENED_RUNTIME: true
         COMBINE_HIDPI_IMAGES: true
