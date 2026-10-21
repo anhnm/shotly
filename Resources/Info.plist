@@ -11,7 +11,7 @@
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>BetterShot</string>
+    <string>Shotly</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -23,8 +23,12 @@
     <key>LSUIElement</key>
     <true/>
     <key>NSScreenCaptureUsageDescription</key>
-    <string>BetterShot needs screen recording access to capture screenshots and record your screen.</string>
-    <key>NSRequiresAquaSystemAppearance</key>
-    <true/>
+    <string>Shotly needs screen recording access to capture screenshots and record your screen.</string>
+    <key>ShotlyUpdateRepo</key>
+    <string>anhnm/shotly</string>
+    <key>ShotlyAnalyticsEndpoint</key>
+    <string>https://shotly.anhnm.pro/analytics/events.php</string>
+    <key>ShotlyAnalyticsIngestKey</key>
+    <string>5574e7691aaa7f4aafbbeddbd2aa6e86c6f954be7008bc4a9ab47a2d096f85f9</string>
 </dict>
 </plist>
