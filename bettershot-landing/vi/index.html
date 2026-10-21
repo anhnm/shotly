@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-RYL6XSXDZY"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-RYL6XSXDZY');
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#071914" />
+    <meta
+      name="description"
+      content="Shotly là ứng dụng chụp và quay màn hình miễn phí cho macOS, hỗ trợ chỉnh sửa ảnh, OCR tiếng Việt, dịch văn bản và xử lý dữ liệu ngay trên máy."
+    />
+    <title>Shotly – Ứng dụng chụp màn hình, quay màn hình và OCR cho macOS</title>
+    <link rel="canonical" href="https://shotly.anhnm.pro/vi/" />
+    <link rel="alternate" hreflang="en" href="https://shotly.anhnm.pro/" />
+    <link rel="alternate" hreflang="vi" href="https://shotly.anhnm.pro/vi/" />
+    <link rel="alternate" hreflang="x-default" href="https://shotly.anhnm.pro/" />
+    <link rel="icon" href="../public/logo.png" />
+    <link rel="stylesheet" href="../styles.css?v=1.0.32" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Shotly",
+        "applicationCategory": "UtilitiesApplication",
+        "applicationSubCategory": "Ứng dụng chụp và quay màn hình",
+        "operatingSystem": "macOS 14 trở lên",
+        "softwareVersion": "1.0.32",
+        "inLanguage": "vi",
+        "isAccessibleForFree": true,
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "VND"
+        },
+        "description": "Ứng dụng chụp và quay màn hình native cho macOS, hỗ trợ chụp cửa sổ ổn định, tùy chỉnh phím tắt, chú thích, OCR đa ngôn ngữ, dịch văn bản, che dữ liệu nhạy cảm và xử lý cục bộ.",
+        "url": "https://shotly.anhnm.pro/vi/",
+        "downloadUrl": "https://shotly.anhnm.pro/release/Shotly-1.0.32.dmg",
+        "image": "https://shotly.anhnm.pro/public/logo.png",
+        "author": {
+          "@type": "Person",
+          "name": "Anh Nguyễn",
+          "url": "https://www.facebook.com/anh2610/"
+        }
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "inLanguage": "vi",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Shotly có miễn phí không?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Có. Shotly được tải xuống và sử dụng miễn phí, không yêu cầu tài khoản." }
+          },
+          {
+            "@type": "Question",
+            "name": "Shotly có hoạt động ngoại tuyến không?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Có. Chụp màn hình, OCR, chú thích, ghép ảnh và chỉnh sửa đều chạy cục bộ trên máy Mac. Tính năng dịch OCR sử dụng framework Translation trên thiết bị của Apple." }
+          },
+          {
+            "@type": "Question",
+            "name": "Shotly hỗ trợ OCR và dịch những ngôn ngữ nào?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Shotly nhận dạng tiếng Anh, tiếng Việt, tiếng Nhật, tiếng Hàn, tiếng Trung giản thể và tiếng Trung phồn thể. Ngôn ngữ đích còn có tiếng Pháp, tiếng Đức và tiếng Tây Ban Nha." }
+          },
+          {
+            "@type": "Question",
+            "name": "Shotly yêu cầu phiên bản macOS nào?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Shotly yêu cầu macOS 14 trở lên trên máy Mac dùng Apple Silicon. Tính năng dịch OCR yêu cầu macOS 15 trở lên." }
+          },
+          {
+            "@type": "Question",
+            "name": "Shotly có quay màn hình được không?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Có. Shotly quay video MP4 với tùy chọn con trỏ và âm thanh, hỗ trợ tạm dừng, tiếp tục, cắt timeline và xuất video." }
+          },
+          {
+            "@type": "Question",
+            "name": "Shotly có tải ảnh chụp hoặc nội dung OCR lên máy chủ không?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Không. Shotly không tải ảnh chụp, nội dung OCR, tên tệp hay nội dung clipboard lên máy chủ. Thống kê sử dụng tính năng ẩn danh có thể được tắt trong Cài đặt." }
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <header class="site-header" id="top">
+      <div class="nav-shell">
+        <a class="brand" href="#top" aria-label="Trang chủ Shotly">
+          <img src="../public/logo.png" alt="Shotly" />
+          <span>Shotly</span>
+        </a>
+
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-label="Mở menu điều hướng">
+          <span></span><span></span>
+        </button>
+
+        <nav class="main-nav" aria-label="Điều hướng chính">
+          <a href="#features">Tính năng</a>
+          <a href="#workflow">Quy trình</a>
+          <a href="#screenshots">Ảnh giao diện</a>
+          <a href="#faq">Hỏi đáp</a>
+          <a href="releases/">Phiên bản</a>
+          <a href="#about">Giới thiệu</a>
+        </nav>
+
+        <div class="language-switch" aria-label="Ngôn ngữ">
+          <a href="../" lang="en" hreflang="en">EN</a>
+          <span class="active" aria-current="page">VI</span>
+        </div>
+
+        <a class="button button-small nav-download" href="../../release/Shotly-1.0.32.dmg" download>
+          Tải xuống
+          <span class="download-badge">1.0.32</span>
+        </a>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-glow hero-glow-one"></div>
+        <div class="hero-glow hero-glow-two"></div>
+        <div class="section-shell">
+          <div class="eyebrow reveal">
+            <span class="status-dot"></span>
+            Ứng dụng native cho macOS · Phiên bản 1.0.32
+          </div>
+
+          <h1 class="reveal">
+            Shotly — Ứng dụng chụp và<br />
+            <span>quay màn hình dành cho macOS</span>
+          </h1>
+
+          <p class="hero-sub reveal">Chụp nhanh. Chỉnh sửa dễ dàng.</p>
+
+          <p class="hero-copy reveal">
+            Chụp và quay màn hình, chú thích chính xác, OCR đa ngôn ngữ,
+            dịch văn bản và che dữ liệu nhạy cảm — tất cả trong một ứng dụng nhanh,
+            riêng tư và xử lý ngay trên máy.
+          </p>
+
+          <div class="hero-actions reveal">
+            <a class="button button-primary" href="../../release/Shotly-1.0.32.dmg" download>
+              <span>Tải Shotly cho macOS</span>
+              <span class="download-badge">1.0.32</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 21h14" /></svg>
+            </a>
+            <a class="button button-ghost" href="#features">Khám phá tính năng</a>
+            <button class="button button-coffee" type="button" data-coffee-open>
+              <span aria-hidden="true">☕</span>
+              Mời tôi một ly cà phê
+            </button>
+          </div>
+
+          <div class="platform-notes reveal">
+            <span>macOS 14+</span>
+            <span>Apple Silicon</span>
+            <span>Không cần tài khoản</span>
+            <span>Xử lý cục bộ</span>
+          </div>
+
+          <img class="hero-product reveal" id="screenshots" src="../public/editor.webp" alt="Giao diện chỉnh sửa ảnh của Shotly" />
+        </div>
+      </section>
+
+      <section class="trust-strip">
+        <div class="section-shell trust-grid">
+          <div><strong>3</strong><span>chế độ chụp</span></div>
+          <div><strong>12+</strong><span>công cụ chú thích</span></div>
+          <div><strong>6</strong><span>ngôn ngữ OCR</span></div>
+          <div><strong>100%</strong><span>xử lý trên máy</span></div>
+        </div>
+      </section>
+
+      <section class="section-shell feature-intro" id="features">
+        <div class="section-heading reveal">
+          <div>
+            <p class="section-kicker">Dành cho công việc hằng ngày</p>
+            <h2>Mọi công cụ cần thiết từ lúc chụp đến khi chia sẻ.</h2>
+          </div>
+          <p>
+            Shotly gom toàn bộ quy trình xử lý ảnh chụp màn hình vào một ứng dụng native,
+            giúp thao tác luôn nhanh, ổn định và thuận tiện với bàn phím.
+          </p>
+        </div>
+
+        <div class="feature-grid">
+          <article class="feature-card reveal"><div class="feature-icon">⌗</div><h3>Chụp cửa sổ ổn định</h3><p>Phiên bản 1.0.32 giúp chọn cửa sổ nhanh và ổn định trên macOS mới nhất, với bản xem trước đóng băng đa màn hình và vùng chọn rõ ràng.</p></article>
+          <article class="feature-card reveal"><div class="feature-icon">文</div><h3>OCR và dịch văn bản</h3><p>Trích xuất văn bản đa ngôn ngữ bằng Apple Vision, tự nhận biết ngôn ngữ nguồn và dịch ngay trên thiết bị bằng Apple Translation.</p></article>
+          <article class="feature-card reveal"><div class="feature-icon">↔</div><h3>Đo khoảng cách pixel</h3><p>Vẽ thước đo ngang hoặc dọc với khả năng tự khóa trục và nhãn kích thước pixel rõ ràng.</p></article>
+          <article class="feature-card reveal"><div class="feature-icon">▦</div><h3>Ghép ảnh Collage</h3><p>Giữ nhiều bản xem trước cùng lúc rồi ghép ảnh theo chiều dọc, chiều ngang hoặc dạng lưới 2×2 gọn gàng.</p></article>
+          <article class="feature-card reveal"><div class="feature-icon">◫</div><h3>Làm mờ và Mosaic</h3><p>Che vùng nhạy cảm bằng hiệu ứng làm mờ mượt hoặc Mosaic dạng pixel, với mức độ có thể điều chỉnh.</p></article>
+          <article class="feature-card reveal"><div class="feature-icon">✦</div><h3>Tự động che dữ liệu nhạy cảm</h3><p>Dùng OCR để phát hiện email, số điện thoại và thông tin thanh toán rồi che chúng trước khi chia sẻ.</p></article>
+        </div>
+      </section>
+
+      <section class="product-section section-shell" id="workflow">
+        <div class="product-copy reveal">
+          <p class="section-kicker">Quy trình chụp</p>
+          <h2>Chụp trước. Chọn hành động tiếp theo sau.</h2>
+          <p>
+            Mỗi ảnh chụp xuất hiện trong bản xem trước nhỏ gọn. Bạn có thể sao chép,
+            lưu, chỉnh sửa, ghim, xóa hoặc tiếp tục chụp. Nhiều bản xem trước tự xếp
+            ngay ngắn để sẵn sàng ghép thành Collage.
+          </p>
+          <ul class="check-list">
+            <li>Chụp vùng, toàn màn hình và cửa sổ ổn định</li>
+            <li>Tùy chỉnh phím tắt, gồm cả phím tắt Chụp cửa sổ mới</li>
+            <li>Quick Preview có thể di chuyển và tự đóng tùy chọn</li>
+            <li>Kéo thả trực tiếp vào Finder, Figma, Slack hoặc Messages</li>
+            <li>Ghim ảnh tham khảo nổi trên các cửa sổ khác</li>
+          </ul>
+        </div>
+        <div class="product-visual reveal">
+          <figure class="product-shot" data-src="../public/screenshots/quick-preview.webp">
+            <div class="shot-placeholder">
+              <div class="preview-stack"><div class="preview-card card-back"></div><div class="preview-card card-mid"></div><div class="preview-card card-front"><span>Xem trước ảnh chụp</span><div><b>✎</b><b>⌘C</b><b>↓</b><b>×</b></div></div></div>
+              <p>Giao diện Quick Preview</p>
+              <small>public/screenshots/quick-preview.webp</small>
+            </div>
+          </figure>
+        </div>
+      </section>
+
+      <section class="product-section section-shell reverse">
+        <div class="product-copy reveal">
+          <p class="section-kicker">Chỉnh sửa và chú thích</p>
+          <h2>Tập trung giải thích ý tưởng, không phải học cách dùng công cụ.</h2>
+          <p>
+            Thanh công cụ nhỏ gọn giữ cho vùng làm việc rộng rãi, còn các thiết lập
+            theo ngữ cảnh chỉ xuất hiện khi cần. Mọi chú thích đều có thể chọn, di chuyển,
+            thay đổi kích thước và xóa trước khi xuất ảnh.
+          </p>
+          <ul class="check-list">
+            <li>Hình khối, mũi tên, vẽ tay, văn bản, đánh số và spotlight</li>
+            <li>Thước đo tự bắt theo chiều ngang hoặc dọc</li>
+            <li>Blur, Mosaic, cắt ảnh, metadata và watermark</li>
+            <li>Nền, padding, bo góc, đổ bóng và bố cục</li>
+          </ul>
+        </div>
+        <div class="product-visual reveal">
+          <figure class="product-shot" data-src="../public/screenshots/editor.webp">
+            <div class="shot-placeholder editor-placeholder">
+              <div class="mini-toolbar"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="mini-canvas"><div class="mini-measure">|──── 312 px ────|</div><div class="mini-blur"></div><div class="mini-label">Chú thích rõ ràng, dễ chỉnh sửa</div></div>
+              <p>Giao diện Editor</p><small>public/screenshots/editor.webp</small>
+            </div>
+          </figure>
+        </div>
+      </section>
+
+      <section class="product-section section-shell">
+        <div class="product-copy reveal">
+          <p class="section-kicker">OCR, dịch thuật và quyền riêng tư</p>
+          <h2>Trích xuất, dịch và bảo vệ văn bản chỉ trong một lần quét.</h2>
+          <p>
+            Shotly tự sao chép văn bản nhận dạng được vào clipboard, phát hiện ngôn ngữ
+            nguồn rồi hiển thị nội dung gốc và bản dịch cạnh nhau. Bạn có thể đổi ngôn ngữ
+            đích và sao chép bản dịch chỉ với một lần bấm.
+          </p>
+          <ul class="check-list">
+            <li>Tự động nhận biết ngôn ngữ nguồn</li>
+            <li>Hiển thị nội dung gốc và bản dịch cạnh nhau</li>
+            <li>Chọn ngôn ngữ đích và sao chép bằng một lần bấm</li>
+            <li>Dịch riêng tư trên thiết bị từ macOS 15 trở lên</li>
+          </ul>
+          <div class="language-pills"><span>English</span><span>Tiếng Việt</span><span>日本語</span><span>한국어</span><span>简体中文</span><span>繁體中文</span><span>Français</span><span>Deutsch</span><span>Español</span></div>
+        </div>
+        <div class="product-visual reveal">
+          <figure class="product-shot" data-src="../public/screenshots/ocr-smart-blur.webp">
+            <div class="shot-placeholder ocr-placeholder"><div class="ocr-lines"><i></i><i></i><i></i><i></i><i></i></div><div class="privacy-chip">Dữ liệu nhạy cảm đã được bảo vệ</div><p>OCR, dịch thuật và Smart Blur</p><small>public/screenshots/ocr-smart-blur.webp</small></div>
+          </figure>
+        </div>
+      </section>
+
+      <section class="product-section section-shell reverse">
+        <div class="product-copy reveal">
+          <p class="section-kicker">Quay màn hình</p>
+          <h2>Quay, cắt và hoàn thiện câu chuyện.</h2>
+          <p>
+            Quay video MP4 mượt mà với bảng điều khiển nổi không xuất hiện trong video.
+            Cắt thời lượng, cắt khung hình, thêm nền và xuất video ngay trong trình chỉnh sửa của Shotly.
+          </p>
+          <ul class="check-list">
+            <li>24, 30 hoặc 60 FPS với tùy chọn con trỏ và âm thanh</li>
+            <li>Tạm dừng, tiếp tục, quay lại, dừng và hủy</li>
+            <li>Cắt timeline và điều hướng bằng thumbnail</li>
+            <li>Nền video và các hiệu ứng hình ảnh</li>
+          </ul>
+        </div>
+        <div class="product-visual reveal">
+          <figure class="product-shot" data-src="../public/screenshots/recording.webp">
+            <div class="shot-placeholder recording-placeholder"><div class="recording-pill"><i></i><b>02:34</b><span>Ⅱ</span><span>■</span><span>↻</span><span>×</span></div><div class="timeline"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+          </figure>
+        </div>
+      </section>
+
+      <section class="capability-section">
+        <div class="section-shell">
+          <div class="section-heading compact reveal"><div><p class="section-kicker">Những chi tiết hữu ích</p><h2>Các công cụ nhỏ giúp công việc luôn trôi chảy.</h2></div></div>
+          <div class="capability-grid">
+            <div class="capability reveal"><span>01</span><h3>Mẫu Watermark</h3><p>Lưu watermark dạng chữ hoặc hình ảnh với vị trí, kích thước, độ trong suốt và góc xoay.</p></div>
+            <div class="capability reveal"><span>02</span><h3>Lịch sử chụp</h3><p>Duyệt riêng ảnh chụp và video, sau đó mở lại hoặc xóa khi không còn cần.</p></div>
+            <div class="capability reveal"><span>03</span><h3>Metadata của ảnh</h3><p>Thêm thông tin chụp vào canvas với màu sắc và cỡ chữ tùy chỉnh.</p></div>
+            <div class="capability reveal"><span>04</span><h3>Lấy mã màu</h3><p>Lấy màu của bất kỳ pixel nào trên màn hình và sao chép chính xác mã HEX.</p></div>
+            <div class="capability reveal"><span>05</span><h3>Hướng dẫn lần đầu</h3><p>Kiểm tra quyền truy cập, phím tắt và các xung đột có thể xảy ra trên macOS.</p></div>
+            <div class="capability reveal"><span>06</span><h3>Giao diện hệ thống</h3><p>Chọn giao diện Sáng, Tối hoặc tự động theo cài đặt hiện tại của macOS.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="gallery-section section-shell">
+        <div class="section-heading reveal"><div><p class="section-kicker">Hình ảnh sản phẩm</p><h2>Khám phá Shotly qua giao diện thực tế.</h2></div></div>
+        <div class="gallery-grid">
+          <figure class="gallery-shot product-shot reveal" data-src="../public/screenshots/menu.webp"><div class="shot-placeholder"><b>Menu bar</b><small>menu.webp</small></div></figure>
+          <figure class="gallery-shot product-shot reveal" data-src="../public/screenshots/settings.webp"><div class="shot-placeholder"><b>Cài đặt</b><small>settings.webp</small></div></figure>
+          <figure class="gallery-shot product-shot reveal" data-src="../public/screenshots/collage.webp"><div class="shot-placeholder"><b>Ghép ảnh Collage</b><small>collage.webp</small></div></figure>
+          <figure class="gallery-shot product-shot reveal" data-src="../public/screenshots/watermark.webp"><div class="shot-placeholder"><b>Watermark</b><small>watermark.webp</small></div></figure>
+        </div>
+      </section>
+
+      <section class="about-section" id="about">
+        <div class="section-shell about-card reveal">
+          <div>
+            <p class="section-kicker">Về Shotly</p>
+            <h2>Được tạo ra để chụp nhanh và bảo vệ quyền riêng tư trên macOS.</h2>
+            <p>
+              Shotly được phát triển và duy trì bởi <strong>Anh Nguyễn</strong>.
+              Ứng dụng dựa trên Better Shot, dự án mã nguồn mở ban đầu của Kartik Labhshetwar,
+              sau đó được mở rộng với quy trình mới và nhiều công cụ bổ sung.
+            </p>
+            <div class="about-actions"><button class="button button-coffee" type="button" data-coffee-open><span aria-hidden="true">☕</span>Mời tôi một ly cà phê</button></div>
+          </div>
+          <div class="author-card"><img src="../public/logo.png" alt="Biểu tượng ứng dụng Shotly" /><div><small>Nhà phát triển</small><strong>Anh Nguyễn</strong><a href="https://www.facebook.com/anh2610/" target="_blank" rel="noreferrer">Trang Facebook</a></div></div>
+        </div>
+      </section>
+
+      <section class="download-section" id="download">
+        <div class="section-shell download-card reveal">
+          <img src="../public/logo.png" alt="Shotly" />
+          <div><p class="section-kicker">Shotly 1.0.32</p><h2>Sẵn sàng cho quy trình chụp màn hình nhanh hơn?</h2><p>Tải bản Apple Silicon mới nhất với tính năng Chụp cửa sổ ổn định hơn và phản hồi phím tắt mượt hơn trên macOS mới.</p></div>
+          <a class="button button-primary" href="../../release/Shotly-1.0.32.dmg" download><span>Tải file DMG</span><span class="download-badge">1.0.32</span></a>
+        </div>
+      </section>
+
+      <section class="faq-section" id="faq">
+        <div class="section-shell">
+          <div class="section-heading compact reveal"><div><p class="section-kicker">Câu hỏi thường gặp</p><h2>Những điều cần biết trước khi tải Shotly.</h2></div></div>
+          <div class="faq-grid">
+            <article class="faq-item reveal"><h3>Shotly có miễn phí không?</h3><p>Có. Shotly được tải xuống và sử dụng miễn phí, không yêu cầu tài khoản.</p></article>
+            <article class="faq-item reveal"><h3>Shotly có hoạt động ngoại tuyến không?</h3><p>Có. Chụp màn hình, OCR, chú thích, ghép ảnh và chỉnh sửa đều chạy cục bộ trên máy Mac. Dịch OCR sử dụng framework Translation trên thiết bị của Apple.</p></article>
+            <article class="faq-item reveal"><h3>Shotly hỗ trợ OCR và dịch những ngôn ngữ nào?</h3><p>Shotly nhận dạng tiếng Anh, tiếng Việt, tiếng Nhật, tiếng Hàn, tiếng Trung giản thể và phồn thể. Ngôn ngữ đích còn có tiếng Pháp, tiếng Đức và tiếng Tây Ban Nha.</p></article>
+            <article class="faq-item reveal"><h3>Shotly yêu cầu phiên bản macOS nào?</h3><p>Shotly yêu cầu macOS 14 trở lên trên máy Mac dùng Apple Silicon. Tính năng dịch OCR yêu cầu macOS 15 trở lên.</p></article>
+            <article class="faq-item reveal"><h3>Shotly có quay màn hình được không?</h3><p>Có. Shotly quay video MP4 với tùy chọn con trỏ và âm thanh, hỗ trợ tạm dừng, tiếp tục, cắt timeline và xuất video.</p></article>
+            <article class="faq-item reveal"><h3>Shotly có tải ảnh chụp hoặc nội dung OCR lên máy chủ không?</h3><p>Không. Shotly không tải ảnh chụp, nội dung OCR, tên tệp hay clipboard lên máy chủ. Thống kê sử dụng tính năng ẩn danh có thể được tắt trong Cài đặt.</p></article>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="section-shell footer-shell">
+        <div class="brand footer-brand"><img src="../public/logo.png" alt="" /><span>Shotly</span></div>
+        <div class="footer-info"><p class="credits-text">Dựa trên Better Shot, dự án mã nguồn mở của Kartik Labhshetwar.</p><p>© <span id="current-year"></span> Anh Nguyễn. Chụp, chỉnh sửa và chia sẻ — thật nhanh.</p></div>
+        <a href="https://www.facebook.com/anh2610/" target="_blank" rel="noreferrer">Facebook</a>
+      </div>
+    </footer>
+
+    <div class="coffee-modal" id="coffee-modal" aria-hidden="true">
+      <button class="coffee-backdrop" type="button" aria-label="Đóng cửa sổ mời cà phê" data-coffee-close></button>
+      <section class="coffee-dialog" role="dialog" aria-modal="true" aria-labelledby="coffee-title">
+        <button class="coffee-close" type="button" aria-label="Đóng" data-coffee-close>×</button>
+        <div class="coffee-form-view" data-coffee-form-view>
+          <div class="coffee-icon" aria-hidden="true">☕</div>
+          <p class="section-kicker">Ủng hộ Shotly</p>
+          <h2 id="coffee-title">Mời tôi một ly cà phê</h2>
+          <p class="coffee-intro">Sự ủng hộ của bạn giúp tôi tiếp tục cải thiện Shotly và xây dựng thêm những công cụ hữu ích cho macOS.</p>
+          <form id="coffee-form" novalidate>
+            <label for="coffee-amount">Số tiền</label>
+            <div class="coffee-input-wrap"><input id="coffee-amount" name="amount" type="number" min="5000" step="1000" inputmode="numeric" value="50000" placeholder="50.000" /><span>VND</span></div>
+            <div class="coffee-amount-options" aria-label="Mệnh giá gợi ý"><button type="button" data-coffee-amount="20000">20.000</button><button type="button" data-coffee-amount="30000">30.000</button><button class="active" type="button" data-coffee-amount="50000">50.000</button><button type="button" data-coffee-amount="100000">100.000</button><button type="button" data-coffee-amount="200000">200.000</button></div>
+            <p class="coffee-hint">Chọn một mệnh giá hoặc nhập số tiền từ 5.000 VND.</p>
+            <label for="coffee-message">Nội dung chuyển khoản</label>
+            <input id="coffee-message" name="message" type="text" maxlength="80" placeholder="Ung ho Shotly" />
+            <p class="coffee-error" role="alert" data-coffee-error></p>
+            <button class="button button-primary coffee-submit" type="submit"><span aria-hidden="true">☕</span>Mời tôi một ly cà phê</button>
+          </form>
+        </div>
+        <div class="coffee-qr-view" data-coffee-qr-view hidden>
+          <div class="coffee-thanks-icon" aria-hidden="true">♥</div>
+          <p class="section-kicker">Cảm ơn bạn</p>
+          <h2>Chân thành cảm ơn sự ủng hộ của bạn.</h2>
+          <p class="coffee-intro">Sự ủng hộ này là nguồn động lực rất lớn và giúp Shotly có thêm điều kiện phát triển. Tôi thực sự trân trọng tấm lòng của bạn.</p>
+          <div class="coffee-qr-shell"><img data-coffee-qr alt="Mã QR chuyển khoản MB Bank ủng hộ Shotly" /></div>
+          <dl class="coffee-summary"><div><dt>Số tiền</dt><dd data-coffee-summary-amount></dd></div><div><dt>Nội dung</dt><dd data-coffee-summary-message></dd></div></dl>
+          <button class="coffee-back-button" type="button" data-coffee-back>Thay đổi số tiền hoặc nội dung</button>
+        </div>
+      </section>
+    </div>
+
+    <script src="../script.js?v=1.0.32"></script>
+  </body>
+</html>

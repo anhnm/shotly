@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-RYL6XSXDZY"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-RYL6XSXDZY');
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#071914" />
+    <meta name="description" content="Download Shotly for macOS and read the release notes for versions 1.0.32, 1.0.31, 1.0.30, and 1.0.29." />
+    <title>Shotly Releases – Downloads and Release Notes</title>
+    <link rel="canonical" href="https://shotly.anhnm.pro/releases/" />
+    <link rel="alternate" hreflang="en" href="https://shotly.anhnm.pro/releases/" />
+    <link rel="alternate" hreflang="vi" href="https://shotly.anhnm.pro/vi/releases/" />
+    <link rel="alternate" hreflang="x-default" href="https://shotly.anhnm.pro/releases/" />
+    <link rel="icon" href="../public/logo.png" />
+    <link rel="stylesheet" href="../styles.css?v=1.0.32" />
+  </head>
+  <body>
+    <header class="site-header scrolled" id="top">
+      <div class="nav-shell">
+        <a class="brand" href="../" aria-label="Shotly home">
+          <img src="../public/logo.png" alt="Shotly" />
+          <span>Shotly</span>
+        </a>
+
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-label="Open navigation">
+          <span></span><span></span>
+        </button>
+
+        <nav class="main-nav" aria-label="Primary navigation">
+          <a href="../#features">Features</a>
+          <a href="../#workflow">Workflow</a>
+          <a href="../#screenshots">Screenshots</a>
+          <a href="../#faq">FAQ</a>
+          <a class="active" href="./" aria-current="page">Releases</a>
+          <a href="../#about">About</a>
+        </nav>
+
+        <div class="language-switch" aria-label="Language">
+          <span class="active" aria-current="page">EN</span>
+          <a href="../vi/releases/" lang="vi" hreflang="vi">VI</a>
+        </div>
+
+        <a class="button button-small nav-download" href="../release/Shotly-1.0.32.dmg" download>
+          Download
+          <span class="download-badge">1.0.32</span>
+        </a>
+      </div>
+    </header>
+
+    <main class="releases-main">
+      <div class="section-shell">
+        <header class="releases-hero reveal">
+          <p class="section-kicker">Shotly for macOS</p>
+          <h1>Releases</h1>
+          <p>Download the latest Shotly build or return to an earlier version. Each download is a DMG for Apple Silicon Macs running macOS 14 or later.</p>
+        </header>
+
+        <section class="release-list" aria-label="Shotly releases">
+          <article class="release-card latest reveal">
+            <div class="release-meta">
+              <span class="release-label">Latest</span>
+              <h2 class="release-version">1.0.32</h2>
+              <span class="release-date">Build 33 · Oct 8, 2026</span>
+            </div>
+            <div class="release-content">
+              <h2>Reliable window capture and smoother macOS 27 performance</h2>
+              <p>This update restores window selection and improves capture responsiveness on the latest macOS release.</p>
+              <ul class="release-notes">
+                <li>Fixed Capture Window showing a dark overlay without allowing any window to be selected.</li>
+                <li>Added a customizable Capture Window shortcut in Settings, with ⌘⇧6 as the default.</li>
+                <li>Displayed the active Capture Window shortcut directly in the menu bar panel.</li>
+                <li>Improved hotkey responsiveness and reduced capture stutter on macOS 27.</li>
+                <li>Optimized frozen-screen rendering and multi-display capture using the latest ScreenCaptureKit APIs.</li>
+                <li>Added a safe error message when macOS does not return any selectable windows.</li>
+              </ul>
+              <div class="release-actions">
+                <a class="button button-primary" href="../release/Shotly-1.0.32.dmg" download>Download Shotly 1.0.32</a>
+                <span class="release-requirements">DMG · Apple Silicon · macOS 14+</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="release-card reveal">
+            <div class="release-meta">
+              <h2 class="release-version">1.0.31</h2>
+              <span class="release-date">Build 32 · Aug 3, 2026</span>
+            </div>
+            <div class="release-content">
+              <h2>Copy button in OCR translation popup</h2>
+              <p>This update adds a copy button for the original text in the OCR Translation window and updates project configurations.</p>
+              <ul class="release-notes">
+                <li>Added a "Copy original" button to the original text panel of the OCR Translation window so you can quickly copy recognized text.</li>
+                <li>Updated app metadata and build pipeline configuration to version 1.0.31.</li>
+              </ul>
+              <div class="release-actions">
+                <a class="button button-primary" href="../release/Shotly-1.0.31.dmg" download>Download Shotly 1.0.31</a>
+                <span class="release-requirements">DMG · Apple Silicon · macOS 14+</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="release-card reveal">
+            <div class="release-meta">
+              <h2 class="release-version">1.0.30</h2>
+              <span class="release-date">Build 31 · Aug 3, 2026</span>
+            </div>
+            <div class="release-content">
+              <h2>OCR translation and a more flexible save workflow</h2>
+              <p>This update expands OCR into a complete on-device translation workflow and gives you more control over saving and editor shortcuts.</p>
+              <ul class="release-notes">
+                <li>Translate OCR results with automatic source-language detection, side-by-side text, a target-language picker, and one-click copy.</li>
+                <li>Choose the file name and destination when saving from Quick Preview or the Editor.</li>
+                <li>New Automatically Save Captures setting; when disabled, captures go to the clipboard until you save manually.</li>
+                <li>Customize the Copy and Save keyboard shortcuts used in the Editor.</li>
+                <li>Expanded Capture and Recording settings so controls are no longer hidden in a short panel.</li>
+                <li>Renamed Export to Save for clearer, more consistent actions throughout the app.</li>
+                <li>Removed unnecessary Keychain access so Shotly no longer asks for your Mac login password.</li>
+              </ul>
+              <div class="release-actions">
+                <a class="button button-primary" href="../release/Shotly-1.0.30.dmg" download>Download Shotly 1.0.30</a>
+                <span class="release-requirements">DMG · Apple Silicon · macOS 14+</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="release-card reveal">
+            <div class="release-meta">
+              <h2 class="release-version">1.0.29</h2>
+              <span class="release-date">Jul 22, 2026</span>
+            </div>
+            <div class="release-content">
+              <h2>A rebuilt editor with measurement, redaction, and collage tools</h2>
+              <p>A major editor and capture update that introduced a more compact workflow and a broad set of visual tools.</p>
+              <ul class="release-notes">
+                <li>Redesigned Editor with a compact top toolbar and context-aware style controls.</li>
+                <li>Added Measure annotations with horizontal and vertical snapping and pixel labels.</li>
+                <li>Added adjustable Blur and Mosaic redaction, Highlight density, and Smart Blur detection.</li>
+                <li>Added Collage Builder with vertical, horizontal, and grid layouts, image reordering, pan, and zoom.</li>
+                <li>Improved multilingual OCR reliability for Vietnamese, Japanese, Korean, and Chinese text.</li>
+                <li>Added watermark presets and a dedicated metadata overlay panel.</li>
+                <li>Improved Quick Preview with clearer actions, multi-preview layouts, pinning, and configurable dismissal.</li>
+                <li>Refined frozen-screen capture, Shotly file naming, appearance handling, and the first-run onboarding flow.</li>
+              </ul>
+              <div class="release-actions">
+                <a class="button button-ghost" href="../release/Shotly-1.0.29.dmg" download>Download Shotly 1.0.29</a>
+                <span class="release-requirements">DMG · Apple Silicon · macOS 14+</span>
+              </div>
+            </div>
+          </article>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      <div class="section-shell footer-shell">
+        <a class="brand footer-brand" href="../"><img src="../public/logo.png" alt="" /><span>Shotly</span></a>
+        <div class="footer-info">
+          <p class="credits-text">Based on Better Shot, an open-source project by Kartik Labhshetwar.</p>
+          <p>© <span id="current-year"></span> Anh Nguyễn. Capture, edit, and share — fast.</p>
+        </div>
+        <a href="https://www.facebook.com/anh2610/" target="_blank" rel="noreferrer">Facebook</a>
+      </div>
+    </footer>
+
+    <script src="../script.js?v=1.0.32"></script>
+  </body>
+</html>
