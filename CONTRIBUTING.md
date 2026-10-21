@@ -1,4 +1,4 @@
-# Contributing to BetterShot
+# Contributing to Shotly
 
 Thanks for considering contributing. This guide covers everything you need to get started.
 
@@ -6,8 +6,8 @@ Thanks for considering contributing. This guide covers everything you need to ge
 
 ```bash
 # 1. Fork and clone
-git clone https://github.com/YOUR_USERNAME/better-shot.git
-cd better-shot
+git clone https://github.com/YOUR_USERNAME/shotly.git
+cd shotly
 
 # 2. Build and run
 make run
@@ -15,7 +15,7 @@ make run
 
 That's it. The Makefile handles everything. No extra tools needed.
 
-> **Alternative**: Open `BetterShot.xcodeproj` in Xcode and press `⌘R`.
+> **Alternative**: Open `Shotly.xcodeproj` in Xcode (generate it with `xcodegen generate` first) and press `⌘R`.
 
 ### If you modify `project.yml`
 
@@ -58,7 +58,7 @@ Resources/
   Assets.xcassets/       App icon, menu bar icon
   Backgrounds/           Bundled wallpaper and gradient images
   Info.plist
-  BetterShot.entitlements
+  Shotly.entitlements
 ```
 
 ### Key files
@@ -191,13 +191,9 @@ chore: update dependencies
 
 ## Versioning
 
-Version is tracked in three places (keep them in sync):
-
-| File | Fields |
-|---|---|
-| `version.json` | `version`, `build` |
-| `project.yml` | `MARKETING_VERSION`, `CURRENT_PROJECT_VERSION` |
-| `BetterShot.xcodeproj/project.pbxproj` | `MARKETING_VERSION`, `CURRENT_PROJECT_VERSION` (both Debug and Release) |
+`./release.sh` sets the version for you: it bumps `MARKETING_VERSION` and
+`CURRENT_PROJECT_VERSION` in `project.yml`, regenerates `Shotly.xcodeproj`, and writes
+`version.json` (the update manifest the app reads from GitHub Releases).
 
 The `CHANGELOG.md` documents what changed in each version.
 

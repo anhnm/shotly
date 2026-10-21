@@ -511,7 +511,7 @@ struct OnboardingView: View {
             }
         } else {
             AppPreferences.hasCompletedOnboarding = true
-            if let delegate = NSApp.delegate as? BetterShotDelegate {
+            if let delegate = NSApp.delegate as? ShotlyDelegate {
                 delegate.initializeShortcutService()
             }
             onFinished()

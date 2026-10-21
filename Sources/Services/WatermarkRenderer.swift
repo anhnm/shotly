@@ -103,9 +103,7 @@ enum WatermarkRenderer {
     }
 
     private static func resolveImagePath(for filename: String) -> URL {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let storageDir = appSupport.appendingPathComponent("BetterShot", isDirectory: true)
-        let watermarksDir = storageDir.appendingPathComponent("Watermarks", isDirectory: true)
+        let watermarksDir = AppPaths.supportDirectory.appendingPathComponent("Watermarks", isDirectory: true)
         return watermarksDir.appendingPathComponent(filename)
     }
 }

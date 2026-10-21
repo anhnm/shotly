@@ -68,14 +68,14 @@ xcodegen generate --quiet
 echo "▶ Phiên bản $VERSION (build $BUILD)"
 
 # ---- build bản Release ----
-xcodebuild -project BetterShot.xcodeproj -scheme BetterShot -configuration Release \
+xcodebuild -project Shotly.xcodeproj -scheme Shotly -configuration Release \
   -derivedDataPath .build CODE_SIGNING_ALLOWED=NO build -quiet
 APP=".build/Build/Products/Release/$APP_NAME.app"
 [[ -d "$APP" ]] || false
 
 # ---- ký bằng chứng chỉ cố định: macOS giữ quyền Screen Recording/Accessibility qua các bản ----
 codesign --force --options runtime --timestamp=none \
-  --entitlements Resources/BetterShot.entitlements --sign "$IDENTITY" "$APP"
+  --entitlements Resources/Shotly.entitlements --sign "$IDENTITY" "$APP"
 codesign --verify --strict "$APP"
 trap - ERR
 

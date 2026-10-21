@@ -13,8 +13,7 @@ final class HistoryStore {
     private let manifestURL: URL
 
     private init() {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        storageDir = appSupport.appendingPathComponent("BetterShot", isDirectory: true)
+        storageDir = AppPaths.supportDirectory
         manifestURL = storageDir.appendingPathComponent("history.json")
 
         try? FileManager.default.createDirectory(at: storageDir, withIntermediateDirectories: true)

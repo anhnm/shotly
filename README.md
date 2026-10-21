@@ -1,202 +1,125 @@
-# BetterShot
+# Shotly
 
-[![macOS](https://img.shields.io/badge/macOS-14.0+-black.svg)](https://github.com/KartikLabhshetwar/better-shot)
+[![macOS](https://img.shields.io/badge/macOS-14.0+-black.svg)](https://github.com/anhnm/shotly/releases/latest)
+[![Release](https://img.shields.io/github/v/release/anhnm/shotly)](https://github.com/anhnm/shotly/releases/latest)
 [![License](https://img.shields.io/badge/license-BSD%203--Clause-green.svg)](LICENSE)
-[![X (Twitter)](https://img.shields.io/badge/X-%231DA1F2.svg?style=flat&logo=X&logoColor=white)](https://x.com/code_kartik)
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-%23FFDD00.svg?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/code_kartik)
+[![Website](https://img.shields.io/badge/web-shotly.anhnm.pro-42D396.svg)](https://shotly.anhnm.pro)
 
-An open-source alternative to CleanShot X. Native Swift app for macOS — fast, lightweight, local-first. No subscriptions, no cloud, no telemetry.
+App chụp và quay màn hình cho macOS, viết bằng Swift: nhẹ, nhanh, chạy trên menu bar.
+Chụp xong là chỉnh, chú thích, làm đẹp và chia sẻ ngay, với trình chỉnh sửa theo phong cách Shottr.
 
-## What it does
+## Tính năng
 
-### Capture
+### Chụp và quay
 
-| Action | Shortcut |
+| Thao tác | Phím tắt mặc định |
 |---|---|
-| Region screenshot | `⌘⇧4` |
-| Fullscreen screenshot | `⌘⇧3` |
-| Window screenshot | `⌘⇧5` |
-| Record screen | `⌘⇧2` |
-| OCR text scan | `⌘⇧O` |
-| Color picker (hex) | `⌘⇧C` |
+| Chụp vùng | `⌘⇧4` |
+| Chụp toàn màn hình | `⌘⇧3` |
+| Chụp cửa sổ | `⌘⇧6` |
+| Quay màn hình | `⌘⇧2` |
+| Nhận dạng chữ (OCR) | `⌘⇧O` |
+| Lấy màu (hex) | `⌘⇧C` |
 
-Region, fullscreen, and window capture all use the native macOS `screencapture` CLI for maximum reliability. OCR extracts text from any region of the screen. Color picker samples any on-screen pixel and copies the hex value. All shortcuts are customizable in Settings > Capture.
+- Đóng băng màn hình bằng ScreenCaptureKit, sẵn sàng chọn vùng trong khoảng 30–50ms; giữ `Space` khi kéo để di chuyển vùng chọn.
+- OCR có thể tự dịch kết quả (Apple Translation, macOS 15+).
+- Quay màn hình ra MP4, có trình chỉnh video: cắt, crop, padding, bo góc, nền.
+- Hẹn giờ chụp 3/5/10 giây. Đổi được mọi phím tắt trong Settings → Hotkeys.
 
-### Screen Recording
+### Thẻ xem nhanh sau khi chụp
 
-- **Record full screen** — Capture your entire display as MP4 video with ScreenCaptureKit
-- **Floating status bar** — Timer, pause/resume, stop, restart, and discard controls (hidden from the recording itself)
-- **Video editor** — Trim, crop, add padding, corner radius, shadow, and background (solid, gradient, wallpaper, custom image). Export as MP4 with effects baked in
-- **Configurable** — FPS (24/30/60), show cursor, capture audio in Settings > Recording
+Thẻ trong suốt hiện ngay cạnh con trỏ: bấm để mở editor, kéo thả thẳng vào app khác, hoặc dùng
+các nút Edit `↩`, Copy `⌘C`, Save `⌘S`, Copy text (OCR) `T`, Pin `P`, Collage `G`. Tự ẩn khi
+bấm ra ngoài; chụp nhiều ảnh liên tiếp thì ghép được thành collage.
 
-### Beautify
+### Trình chỉnh sửa
 
-- **Backgrounds** — 12 solid color presets, 16 gradient presets, bundled macOS wallpapers, or your own image
-- **Effects** — Padding, corner radius, shadow strength — all rendered live
-- **Crop** — Crop screenshots and recordings with draggable handles, dark mask, and rule-of-thirds grid
-- **Layout** — Aspect ratio (Auto, 1:1, 4:3, 3:2, 16:9, 9:16), 9-point alignment grid with smart corner radius
-- **Defaults** — Configure your preferred effects and background in Settings with a live preview
-- **Export** — PNG or JPEG for screenshots, MP4 for recordings
+- Zoom và kéo ảnh: `Z` / `⇧Z` tại con trỏ, `⌘+` `⌘−`, `⌘1` vừa cửa sổ, `⌘0` kích thước thật, pinch, giữ `Space` để kéo.
+- Màu dưới con trỏ hiện trên thanh công cụ: `Tab` copy mã màu, `⇧Tab` copy màu chữ gần đó.
+- Đổi kích thước ảnh, crop, ghim ảnh lên màn hình.
+- Chú thích: khung (bo góc / vuông / nét đứt / đặc), hình tròn, đường thẳng, mũi tên cong, vẽ tay,
+  chữ, số thứ tự, thước đo, blur/mosaic, spotlight. Mỗi công cụ một phím: `V T M R D A B G N O L`.
+- Backdrop: nền màu, gradient, hình nền macOS hoặc ảnh riêng; padding, bo góc, bóng đổ; watermark và metadata.
 
-### Annotate
+### Khác
 
-Rectangles, filled rectangles, ellipses, lines, curved arrows, freehand, text, numbered badges, blur, and spotlight. Each has a single-key shortcut in the editor (`R`, `F`, `O`, `L`, `A`, `D`, `T`, `N`, `B`, `G`). Text annotations support font selection, size, bold, italic, underline, and alignment.
+- Lịch sử ảnh chụp và video, menu Recent trên menu bar.
+- Tự kiểm tra và cài bản cập nhật từ GitHub Releases.
+- Thống kê sử dụng ẩn danh, tắt được trong Settings → General → Privacy. Không bao giờ gửi ảnh, nội dung OCR, tên file hay dữ liệu cá nhân.
 
-### Workflow
+## Cài đặt
 
-- **Click-to-edit** — Click the floating preview to open the editor (image or video)
-- **Drag-to-app** — Drag from the preview panel directly into Figma, Slack, or any app
-- **Pin screenshots** — Pin any capture as an always-on-top floating window, unpin all from the menu bar
-- **Auto-apply** — Automatically apply your default background, padding, corner radius, and shadow on every capture and recording
-- **Self-timer** — Countdown overlay before capture (3s, 5s, 10s)
-- **Capture history** — Separate tabs for screenshots and recordings in Settings
-- **Recent menu** — Quick access to recent screenshots and recordings from the menu bar
-- **Toast notifications** — Confirmation toasts for OCR, color picker, and gallery saves
-- **In-app updates** — Check, download, and install updates without leaving the app
-- **Configurable overlay** — Choose preview position and auto-dismiss timing
+1. Tải `Shotly-<phiên bản>.dmg` mới nhất ở trang [Releases](https://github.com/anhnm/shotly/releases/latest).
+2. Mở DMG, kéo Shotly vào Applications.
+3. Lần đầu mở: chuột phải vào Shotly → **Open** (app chưa được Apple công chứng).
+4. Cấp quyền **Screen Recording** (để chụp màn hình) và **Accessibility** (để thay phím tắt chụp mặc định của macOS).
 
-## Install
+Từ bản 2.0, Shotly tự cập nhật và giữ nguyên quyền qua các lần cập nhật.
 
-### Homebrew
+## Build từ mã nguồn
 
-```bash
-brew install --cask bettershot
-```
-
-### Download
-
-1. Go to [Releases](https://github.com/KartikLabhshetwar/better-shot/releases)
-2. Download the latest `.dmg` for your architecture (Apple Silicon or Intel)
-3. Open the DMG, drag BetterShot to Applications
-4. Launch and grant permissions when prompted
-
-### Build from source
+Cần Xcode 16+ và [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
 
 ```bash
-git clone https://github.com/KartikLabhshetwar/better-shot.git
-cd better-shot
+git clone https://github.com/anhnm/shotly.git
+cd shotly
 make run
 ```
 
-This builds a debug version and launches it. See [all make commands](#make-commands) below.
+Project Xcode (`Shotly.xcodeproj`) được sinh từ `project.yml`; sau khi thêm hoặc đổi tên file, chạy `xcodegen generate`.
 
-### Permissions
-
-BetterShot needs two macOS permissions on first launch:
-
-1. **Screen Recording** — System Settings > Privacy & Security > Screen Recording
-2. **Accessibility** — System Settings > Privacy & Security > Accessibility
-
-Screen Recording lets the app capture your screen. Accessibility lets it override the default macOS screenshot shortcuts with its own.
-
-## Usage
-
-1. Launch BetterShot — it appears in your **menu bar** (top right of screen)
-2. Use a keyboard shortcut or click a capture action from the menu
-3. The floating preview appears — **click it to open the editor**
-4. Adjust background, effects, and add annotations
-5. `⌘S` to save, `⇧⌘C` to copy to clipboard
-
-### Editor shortcuts
-
-| Action | Key |
+| Lệnh | Tác dụng |
 |---|---|
-| Select tool | `V` |
-| Rectangle | `R` |
-| Filled rectangle | `F` |
-| Ellipse | `O` |
-| Line | `L` |
-| Arrow | `A` |
-| Freehand | `D` |
-| Text | `T` |
-| Numbered circle | `N` |
-| Blur | `B` |
-| Spotlight | `G` |
-| Save / Export | `⌘S` |
-| Copy to clipboard | `⇧⌘C` |
-| Undo / Redo | `⌘Z` / `⇧⌘Z` |
-| Delete annotation | `Delete` |
-| Select all | `⌘A` |
-| Close editor | `Esc` |
-
-### Settings
-
-Open from the menu bar > **Settings** (or `⌘,`).
-
-- **General** — Save location, clipboard behavior, appearance, default effects with live preview (padding, radius, shadow, background including macOS wallpapers and custom images), export format
-- **Capture** — Self-timer delay, keyboard shortcuts (click any shortcut to re-record it, including record screen), overlay position and dismiss timing
-- **Recording** — FPS (24/30/60), show cursor, capture audio, open editor after recording
-- **History** — Browse and delete past screenshots
-- **Videos** — Browse and delete past recordings, open in video editor
-- **About** — Version info, in-app update checker, project links (GitHub, X)
-
-## Make commands
-
-| Command | What it does |
-|---|---|
-| `make build` | Debug build |
-| `make release` | Release build (unsigned) |
-| `make run` | Build and launch |
-| `make dmg` | Create DMG for local testing |
-| `make clean` | Remove build artifacts |
-| `make lint` | Check for compiler warnings |
-| `make test-build` | Full clean + release build |
-| `make version` | Print current version |
-| `make ship V=1.0.33 NOTES="..."` | Publish a release (same as `./release.sh`) |
+| `make build` | Build Debug |
+| `make run` | Build và mở app |
+| `make release` | Build Release, ký bằng chứng chỉ "Shotly Self-Signed" nếu có (không thì ad-hoc) |
+| `make dmg` | Đóng gói DMG để thử |
+| `make lint` | Xem cảnh báo của trình biên dịch |
+| `make clean` | Xoá file build |
+| `make version` | In phiên bản hiện tại |
+| `make ship V=2.0.1 NOTES="..."` | Phát hành bản mới (giống `./release.sh`) |
 
 ## Phát hành bản cập nhật
 
-Shotly tự kiểm tra bản mới lúc mở app và mỗi 6 giờ, bằng cách đọc
-`https://github.com/<repo>/releases/latest/download/version.json`. Repo lấy từ khoá
-`ShotlyUpdateRepo` trong `Resources/Info.plist` (repo phải public).
+App đọc `https://github.com/<repo>/releases/latest/download/version.json` lúc mở và mỗi 6 giờ.
+Repo lấy từ khoá `ShotlyUpdateRepo` trong `Resources/Info.plist` (repo phải public).
 
-1. Chỉ làm một lần trên máy phát hành: tạo chứng chỉ ký cố định, để người dùng không phải
-   cấp lại quyền Screen Recording/Accessibility sau mỗi lần cập nhật:
+1. Một lần trên máy phát hành: tạo chứng chỉ ký cố định, để người dùng không phải cấp lại quyền sau mỗi lần cập nhật.
    ```bash
    ./tools/create-signing-cert.sh
    ```
-   Sao lưu thư mục `~/Documents/Shotly Signing` mà script tạo ra.
+   Sao lưu thư mục `~/Documents/Shotly Signing` mà script tạo ra (không đưa lên Git).
 2. Mỗi lần phát hành:
    ```bash
-   ./release.sh 1.0.33 "Ghi chú 1" "Ghi chú 2"           # bản thường
-   ./release.sh 1.0.34 "Sửa lỗi nghiêm trọng" --force      # bắt buộc cập nhật
-   ./release.sh 1.0.33 "Thử" --dry-run                     # chỉ build, không đăng
+   ./release.sh 2.0.1 "Ghi chú 1" "Ghi chú 2"           # bản thường
+   ./release.sh 2.0.2 "Sửa lỗi nghiêm trọng" --force     # bắt buộc mọi người cập nhật
+   ./release.sh 2.0.1 "Thử" --dry-run                    # chỉ build, không đăng
    ```
-   Script tăng build number, build, ký, đóng gói `release/Shotly-<version>.dmg`, tạo
-   `version.json` rồi đăng cả hai lên GitHub Releases bằng `gh`.
-3. Commit phần đổi phiên bản: `git commit -am "Release 1.0.33" && git push`.
+   Script tăng build number, build, ký, đóng gói `release/Shotly-<version>.dmg`, tạo `version.json`
+   rồi đăng cả hai lên GitHub Releases bằng `gh`.
+3. Commit phần đổi phiên bản: `git commit -am "Release 2.0.1" && git push`.
 
-Người dùng thấy cửa sổ "Software Update" (cài và mở lại app tự động), nút
-"Update to Shotly …" trên menu bar, hoặc vào Settings → About → Check for Updates.
+## Cấu trúc
 
-## Architecture
+Swift 6, SwiftUI kết hợp AppKit, không dùng thư viện ngoài.
 
-Native Swift 6 / SwiftUI. No Electron, no web views, no external dependencies.
-
-| Framework | Used for |
+| Thư mục | Nội dung |
 |---|---|
-| CoreGraphics | Image compositing, annotation rendering, beautifier pipeline |
-| CoreImage | Gaussian blur for redaction |
-| Vision | OCR text extraction |
-| ScreenCaptureKit | Screen and window recording |
-| AVFoundation | Video editing, trimming, effect compositing via AVMutableVideoComposition |
-| AppKit | Color sampling, floating panels, pinned windows, capture via CLI |
-| Carbon | Global keyboard shortcuts via CGEvent tap |
+| `Sources/App` | Khởi động app, quyền, phím tắt |
+| `Sources/Capture` | Đóng băng màn hình, chọn vùng/cửa sổ, OCR, lấy màu |
+| `Sources/Editor` | Trình chỉnh sửa: canvas, zoom, công cụ chú thích, thanh công cụ |
+| `Sources/Preview` | Thẻ xem nhanh sau khi chụp, ghim ảnh |
+| `Sources/Recording` | Quay màn hình và trình chỉnh video |
+| `Sources/Settings` | Cửa sổ Settings |
+| `Sources/Services` | Phím tắt toàn hệ thống, làm đẹp ảnh, watermark, cập nhật, thống kê |
+| `website/` | Trang giới thiệu shotly.anhnm.pro (tiếng Anh + `/vi`) và backend thống kê |
+| `docs/` | Ghi chú nội bộ (cài đặt analytics trên Hostinger, lịch sử thay đổi) |
 
-## Contributing
+## Ghi công
 
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, project structure, and coding guidelines.
+Shotly phát triển từ [Better Shot](https://github.com/KartikLabhshetwar/better-shot), dự án mã nguồn mở
+của Kartik Labhshetwar, theo giấy phép BSD 3-Clause.
 
-## License
+## Giấy phép
 
-BSD 3-Clause. See [LICENSE](LICENSE).
-
-## Star History
-
-<a href="https://www.star-history.com/#KartikLabhshetwar/better-shot&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=KartikLabhshetwar/better-shot&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=KartikLabhshetwar/better-shot&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=KartikLabhshetwar/better-shot&type=date&legend=top-left" />
- </picture>
-</a>
+BSD 3-Clause. Xem [LICENSE](LICENSE).

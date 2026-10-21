@@ -48,8 +48,7 @@ final class WatermarkStore {
     private let watermarksDir: URL
 
     private init() {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        storageDir = appSupport.appendingPathComponent("BetterShot", isDirectory: true)
+        storageDir = AppPaths.supportDirectory
         presetsURL = storageDir.appendingPathComponent("watermark-presets.json")
         watermarksDir = storageDir.appendingPathComponent("Watermarks", isDirectory: true)
 

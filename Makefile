@@ -1,4 +1,4 @@
-# BetterShot Makefile
+# Shotly Makefile
 # Usage:
 #   make build        — Debug build
 #   make release      — Release build
@@ -10,9 +10,9 @@
 #   make version      — Print current version
 #   make ship V=1.0.33 NOTES="..." — Publish a release to GitHub (see release.sh)
 
-SCHEME       = BetterShot
+SCHEME       = Shotly
 APP_NAME     = Shotly
-PROJECT      = BetterShot.xcodeproj
+PROJECT      = Shotly.xcodeproj
 CONFIG_DEBUG = Debug
 CONFIG_REL   = Release
 DERIVED_DIR  = .build
@@ -51,7 +51,7 @@ release: ## Release build (unsigned)
 	@# executable name and its resources are not sealed, so macOS cannot attach
 	@# privacy permissions to it. Sign the whole bundle properly.
 	@codesign --force --options runtime --timestamp=none \
-		--entitlements Resources/BetterShot.entitlements \
+		--entitlements Resources/Shotly.entitlements \
 		--sign "$(SIGN_IDENTITY)" "$(APP_RELEASE)"
 	@codesign --verify --strict "$(APP_RELEASE)"
 	@echo "==> $(APP_RELEASE) (signed: $(SIGN_IDENTITY))"

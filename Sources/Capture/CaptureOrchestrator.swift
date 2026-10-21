@@ -281,8 +281,7 @@ final class CaptureOrchestrator {
     }
 
     private static var baseStorageDir: URL {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let dir = appSupport.appendingPathComponent("BetterShot/bases", isDirectory: true)
+        let dir = AppPaths.supportDirectory.appendingPathComponent("bases", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }

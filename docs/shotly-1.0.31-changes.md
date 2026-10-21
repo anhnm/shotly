@@ -24,7 +24,7 @@ Dưới đây là tài liệu tổng hợp toàn bộ các tính năng mới, l�
 * **Analytics ẩn danh, bảo mật:**
   * Xây dựng dịch vụ **AnalyticsService** gọn nhẹ, lưu trữ hàng đợi cục bộ dưới máy và gửi báo cáo ẩn danh (event telemetry) dạng batch về máy chủ.
   * Hoàn toàn không lưu hoặc gửi dữ liệu nhạy cảm của người dùng (không gửi ảnh chụp, nội dung văn bản OCR, clipboard, tên tệp, email hay tên tài khoản).
-  * Triển khai bộ mã nguồn PHP backend trong thư mục `bettershot-landing/analytics` để tự quản lý lưu trữ trên cơ sở dữ liệu MySQL của Hostinger, đi kèm trang Dashboard quản trị lọc dữ liệu theo thời gian thực (7/30/90/365 ngày) và xuất file CSV.
+  * Triển khai bộ mã nguồn PHP backend trong thư mục `website/analytics` để tự quản lý lưu trữ trên cơ sở dữ liệu MySQL của Hostinger, đi kèm trang Dashboard quản trị lọc dữ liệu theo thời gian thực (7/30/90/365 ngày) và xuất file CSV.
   * Cho phép người dùng tùy chọn bật/tắt chia sẻ phân tích ẩn danh này tại phần cấu hình **Settings -> General -> Privacy**.
 
 ---

@@ -24,8 +24,8 @@ final class ScreenRecordingManager: NSObject {
     private var timer: Timer?
     nonisolated(unsafe) private var _streamSession: RecordingSession?
 
-    private let videoQueue = DispatchQueue(label: "com.bettershot.recording.video", qos: .userInitiated)
-    private let audioQueue = DispatchQueue(label: "com.bettershot.recording.audio", qos: .userInteractive)
+    private let videoQueue = DispatchQueue(label: "com.shotly.recording.video", qos: .userInitiated)
+    private let audioQueue = DispatchQueue(label: "com.shotly.recording.audio", qos: .userInteractive)
 
     private override init() { super.init() }
 

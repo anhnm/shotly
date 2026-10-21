@@ -6,7 +6,7 @@ Trong hPanel, mở `Websites` → `Manage` → `Databases` → `Management`, sau
 
 ## 2. Tạo bảng
 
-Mở phpMyAdmin của database vừa tạo, chọn `Import`, tải file `bettershot-landing/analytics/schema.sql` lên và bấm `Go`.
+Mở phpMyAdmin của database vừa tạo, chọn `Import`, tải file `website/analytics/schema.sql` lên và bấm `Go`.
 
 ## 3. Tạo khóa
 

@@ -1,7 +1,7 @@
 import AppKit
 
 @MainActor
-final class BetterShotDelegate: NSObject, NSApplicationDelegate {
+final class ShotlyDelegate: NSObject, NSApplicationDelegate {
     private var permissionPollTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {

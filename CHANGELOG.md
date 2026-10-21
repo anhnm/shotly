@@ -1,9 +1,34 @@
 # Changelog
 
-All notable changes to Better Shot will be documented in this file.
+All notable changes to Shotly are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [2.0] - 2026-10-21
+
+### Added
+
+- **Shottr-style editor**: flat single-row toolbar with tooltips and single-key shortcuts, zoom and pan (`Z`, `⌘0`, `⌘1`, pinch, `Space`-drag), color under the cursor (`Tab` to copy), image resize, and a floating options bar with a stroke-width slider and rectangle styles (rounded, square, dashed, filled)
+- **Capture preview at the cursor**: translucent card with Edit, Copy, Save, Copy text (OCR), Pin and Collage actions, each with a shortcut; hides when you click elsewhere
+- **Settings redesign**: icon tabs (General, Hotkeys, Capture, Backdrop, Recording, Watermark, History, About), two-column form, editor key reference, launch at login
+- **In-app updates** from GitHub Releases (`anhnm/shotly`) with checksum verification, optional required updates, and `release.sh` for publishing
+- Open images in the editor from Finder or `open -a Shotly`
+
+### Changed
+
+- Renamed the project from Better Shot to Shotly: Xcode project, targets, data folder (`~/Library/Application Support/Shotly`, migrated automatically) and repository
+- Release builds are signed with a stable certificate so macOS keeps Screen Recording and Accessibility permissions across updates
+
+### Fixed
+
+- Region selection no longer stutters or misses the first drag on macOS 27; the overlay is ready in 30–50 ms
+- Rendering and saving after a capture no longer block the UI
+- OCR is no longer slow on its first use after an update
+
+## Better Shot history
+
+Releases below were published by the original [Better Shot](https://github.com/KartikLabhshetwar/better-shot) project.
 
 ## [0.3.7] - 2026-06-07
 
