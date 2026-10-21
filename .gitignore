@@ -35,3 +35,8 @@ scripts/
 
 # Claude Code
 CLAUDE.md
+
+# Release signing (never commit) and release.sh temp file
+*.p12
+project.yml.bak
+version.json.bak

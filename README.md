@@ -142,6 +142,32 @@ Open from the menu bar > **Settings** (or `⌘,`).
 | `make lint` | Check for compiler warnings |
 | `make test-build` | Full clean + release build |
 | `make version` | Print current version |
+| `make ship V=1.0.33 NOTES="..."` | Publish a release (same as `./release.sh`) |
+
+## Phát hành bản cập nhật
+
+Shotly tự kiểm tra bản mới lúc mở app và mỗi 6 giờ, bằng cách đọc
+`https://github.com/<repo>/releases/latest/download/version.json`. Repo lấy từ khoá
+`ShotlyUpdateRepo` trong `Resources/Info.plist` (repo phải public).
+
+1. Chỉ làm một lần trên máy phát hành: tạo chứng chỉ ký cố định, để người dùng không phải
+   cấp lại quyền Screen Recording/Accessibility sau mỗi lần cập nhật:
+   ```bash
+   ./tools/create-signing-cert.sh
+   ```
+   Sao lưu thư mục `~/Documents/Shotly Signing` mà script tạo ra.
+2. Mỗi lần phát hành:
+   ```bash
+   ./release.sh 1.0.33 "Ghi chú 1" "Ghi chú 2"           # bản thường
+   ./release.sh 1.0.34 "Sửa lỗi nghiêm trọng" --force      # bắt buộc cập nhật
+   ./release.sh 1.0.33 "Thử" --dry-run                     # chỉ build, không đăng
+   ```
+   Script tăng build number, build, ký, đóng gói `release/Shotly-<version>.dmg`, tạo
+   `version.json` rồi đăng cả hai lên GitHub Releases bằng `gh`.
+3. Commit phần đổi phiên bản: `git commit -am "Release 1.0.33" && git push`.
+
+Người dùng thấy cửa sổ "Software Update" (cài và mở lại app tự động), nút
+"Update to Shotly …" trên menu bar, hoặc vào Settings → About → Check for Updates.
 
 ## Architecture
 
