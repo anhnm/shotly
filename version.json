@@ -1,13 +1,15 @@
 {
-  "version": "2.0.2",
-  "build": 36,
+  "version": "2.1",
+  "build": 37,
   "minimumOS": "14.0",
-  "dmgUrl": "https://github.com/anhnm/shotly/releases/download/v2.0.2/Shotly-2.0.2.dmg",
-  "sha256": "1725e33f2acaecfac945b5f90e24d35215b84d1e7ebb98ae838315ff88edb79c",
-  "size": 11142390,
+  "dmgUrl": "https://github.com/anhnm/shotly/releases/download/v2.1/Shotly-2.1.dmg",
+  "sha256": "ef7184302b1d7a4a397a3ceba62ab32864e9f6223e78aa2c6e64ea33e2dfea3b",
+  "size": 2125251,
   "notes": [
-    "Phím tắt trên menu gọn gàng, dễ đọc",
-    "Phím tắt hiển thị theo thứ tự chuẩn của macOS (⇧⌘4)"
+    "Số thứ tự có đuôi trỏ: chọn kiểu tròn, giọt nước hoặc bong bóng, kéo đầu trỏ để xoay hướng",
+    "Thước đo thông minh: rê chuột là tự bắt cạnh và hiện kích thước, bấm để giữ lại, phím mũi tên để chọn ngang/dọc",
+    "Kính lúp (phím X): phóng to vùng tròn 1.5×, 2×, 3× hoặc 4×",
+    "App nhẹ hơn nhiều: bản tải về còn khoảng 2 MB thay vì 11 MB (bỏ bộ hình nền macOS có sẵn)"
   ],
   "minBuild": 0
 }
