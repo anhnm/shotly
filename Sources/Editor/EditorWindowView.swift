@@ -131,9 +131,10 @@ struct EditorWindowView: View {
 
     @ViewBuilder
     private var titleBarItems: some View {
-            Text("shotly")
-                .font(.system(size: 19, weight: .medium, design: .rounded))
-                .foregroundStyle(EditorTitleBar<EmptyView>.brandColor)
+            Image("Wordmark")
+                .resizable()
+                .scaledToFit()
+                .frame(height: 19)
                 .padding(.leading, 6)
                 .padding(.trailing, 22)
                 .accessibilityLabel("Shotly")
@@ -895,9 +896,6 @@ private struct EditorSidePanel: View {
 /// Flat, Shottr-style title bar drawn in the window's full-size content area.
 /// The system toolbar is not used because macOS wraps its items in glass capsules.
 private struct EditorTitleBar<Content: View>: View {
-    /// Midpoint of the app icon's green-to-teal gradient (#6BDD75 → #19C9B7).
-    static var brandColor: Color { Color(red: 0x42 / 255, green: 0xD3 / 255, blue: 0x96 / 255) }
-
     let height: CGFloat
     @ViewBuilder let content: Content
 

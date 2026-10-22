@@ -188,6 +188,8 @@ final class EditorModel {
             let beautifiedStem = $0.beautifiedPath != nil ? URL(fileURLWithPath: $0.beautifiedPath!).deletingPathExtension().lastPathComponent : ""
             return recordStem == stem || beautifiedStem == stem
         })?.metadata
+            ?? CaptureOrchestrator.shared.metadata(forUnsavedCapture: url)
+            ?? Self.fileMetadata(for: rawURL)
 
         config = AppPreferences.defaultBeautifierConfig
 
@@ -1100,6 +1102,17 @@ final class EditorModel {
         let h = Int(cropRect.height * CGFloat(image.height))
         let pixelRect = CGRect(x: x, y: y, width: max(1, w), height: max(1, h))
         return image.cropping(to: pixelRect) ?? image
+    }
+
+    /// For images without a History record: this Mac's OS and the file's creation date.
+    private static func fileMetadata(for url: URL) -> CaptureMetadata {
+        let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
+        return CaptureMetadata(
+            osVersion: ProcessInfo.processInfo.operatingSystemVersionString,
+            appName: nil,
+            appVersion: nil,
+            timestamp: attributes?[.creationDate] as? Date ?? Date()
+        )
     }
 
     func saveConfigAsDefault() {

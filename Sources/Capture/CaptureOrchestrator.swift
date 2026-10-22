@@ -11,6 +11,9 @@ final class CaptureOrchestrator {
     static let shared = CaptureOrchestrator()
 
     private(set) var lastCaptureURL: URL?
+    /// Metadata of captures that were not saved to History, keyed by file name stem,
+    /// so the editor can still show it.
+    @ObservationIgnored private var unsavedMetadata: [String: CaptureMetadata] = [:]
     private var captureInProgress = false
     private var pendingCapture: (ShortcutService.Action, NSScreen?)?
     private var captureScreen: NSScreen?
@@ -218,6 +221,9 @@ final class CaptureOrchestrator {
         }
 
         let displayURL = outputURL ?? url
+        if recordID == nil, let metadata {
+            unsavedMetadata[Self.metadataKey(for: displayURL)] = metadata
+        }
 
         if outputURL != nil {
             let appIcon = NSImage(named: "AppIcon") ?? NSApp.applicationIconImage
@@ -298,6 +304,15 @@ final class CaptureOrchestrator {
     static func baseImageURL(for url: URL) -> URL {
         let name = url.deletingPathExtension().lastPathComponent
         return baseStorageDir.appendingPathComponent("\(name).base.png")
+    }
+
+    /// Metadata remembered for an unsaved capture shown in the preview.
+    func metadata(forUnsavedCapture url: URL) -> CaptureMetadata? {
+        unsavedMetadata[Self.metadataKey(for: url)]
+    }
+
+    private static func metadataKey(for url: URL) -> String {
+        url.deletingPathExtension().lastPathComponent.replacingOccurrences(of: ".base", with: "")
     }
 
     static func resolveRawSource(for url: URL) -> URL {
