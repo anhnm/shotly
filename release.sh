@@ -123,9 +123,14 @@ fi
 rm -f project.yml.bak version.json.bak
 
 # ---- đăng lên GitHub Releases (app đọc releases/latest/download/version.json) ----
+# Kèm bản sao tên cố định Shotly.dmg để website dùng một link tải không đổi:
+# https://github.com/$REPO/releases/latest/download/Shotly.dmg
+STABLE_DIR=$(mktemp -d)
+cp "$DMG" "$STABLE_DIR/$APP_NAME.dmg"
 BODY=$(printf -- '- %s\n' "${NOTES[@]}")
-gh release create "v$VERSION" "$DMG" release/version.json \
+gh release create "v$VERSION" "$DMG" "$STABLE_DIR/$APP_NAME.dmg" release/version.json \
   --repo "$REPO" --title "$APP_NAME $VERSION" --notes "$BODY" --latest
+rm -rf "$STABLE_DIR"
 echo "✓ Đã phát hành v$VERSION → https://github.com/$REPO/releases/tag/v$VERSION"
 echo "  Mọi người mở app sẽ thấy thông báo cập nhật (hoặc Settings → About → Check for Updates)."
 echo "  Nhớ commit thay đổi phiên bản: git commit -am \"Release $VERSION\" && git push"
