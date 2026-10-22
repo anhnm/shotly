@@ -71,6 +71,9 @@ enum EditorViewportCommand {
     case zoomOutAtCursor
     case copyColor
     case copyTextColor
+    /// Arrow keys with the measure tool: horizontal (←→) or vertical (↑↓) spans.
+    case rulerHorizontal
+    case rulerVertical
 }
 
 final class AnnotationKeyCommandHandlerView: NSView {
@@ -219,6 +222,14 @@ final class AnnotationKeyCommandHandlerView: NSView {
             }
         }
 
+        if flags.isEmpty {
+            switch event.keyCode {
+            case 123, 124: return .rulerHorizontal
+            case 125, 126: return .rulerVertical
+            default: break
+            }
+        }
+
         if character == "z" {
             if flags.isEmpty { return .zoomInAtCursor }
             if flags == .shift { return .zoomOutAtCursor }
@@ -283,6 +294,7 @@ final class AnnotationKeyCommandHandlerView: NSView {
         case "b": return .blur
         case "g": return .spotlight
         case "t": return .text
+        case "x": return .magnifier
         case "h": return .select
         default: return nil
         }
@@ -304,6 +316,7 @@ extension AnnotationTool {
         case .numberedCircle: "N"
         case .pixelate, .blur: "B"
         case .spotlight: "G"
+        case .magnifier: "X"
         case .text: "T"
         }
     }

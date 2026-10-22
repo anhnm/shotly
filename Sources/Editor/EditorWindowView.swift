@@ -14,7 +14,7 @@ struct EditorWindowView: View {
     /// rectangle tool, picked in the options bar (or with the F key).
     private static let toolOrder: [AnnotationTool] = [
         .select, .text, .measure, .rectangle, .freehand,
-        .arrow, .blur, .spotlight, .numberedCircle, .ellipse, .line,
+        .arrow, .blur, .spotlight, .magnifier, .numberedCircle, .ellipse, .line,
     ]
 
     private var isBackdropOpen: Bool {
@@ -788,6 +788,14 @@ private struct EditorFloatingOptionsBar: View {
                 onSelectStyle: { model.setShapeStyle($0) },
                 onSelectFilled: { model.setRectangleFilled() }
             )
+        }
+
+        if model.showsMagnificationControl {
+            MagnificationPicker(value: model.inspectedMagnification) { model.setMagnification($0) }
+        }
+
+        if model.showsBadgeStyleControl {
+            BadgeStylePicker(style: model.inspectedBadgeStyle) { model.setBadgeStyle($0) }
         }
 
         if model.isRedactionControlsVisible {

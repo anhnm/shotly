@@ -5,6 +5,18 @@ All notable changes to Shotly are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1] - 2026-10-22
+
+### Added
+
+- **Numbered badges with a pointer**: pick a circle, teardrop or callout shape in the options bar, then drag the handle at the tip to aim it
+- **Smart ruler**: with the measure tool, hover to see the width and height of the area under the cursor, detected from its edges; click to keep the measurement, use the arrow keys to show only horizontal or vertical. Dragging still measures by hand
+- **Magnifier** (`X`): drag a circle to enlarge what is under it, at 1.5×, 2×, 3× or 4×
+
+### Changed
+
+- Much smaller download: about 2 MB instead of 11 MB. Release builds are optimized for size and stripped, the app icon is compressed, and the bundled macOS wallpapers are gone (solid colors, gradients and your own images remain; a saved wallpaper backdrop becomes a gradient)
+
 ## [2.0] - 2026-10-21
 
 ### Added

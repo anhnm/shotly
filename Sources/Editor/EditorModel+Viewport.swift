@@ -39,6 +39,10 @@ extension EditorModel {
             return copyHoveredColor(darkestNearby: false)
         case .copyTextColor:
             return copyHoveredColor(darkestNearby: true)
+        case .rulerHorizontal:
+            return toggleSmartRulerAxis(.horizontal)
+        case .rulerVertical:
+            return toggleSmartRulerAxis(.vertical)
         default:
             break
         }
@@ -51,7 +55,7 @@ extension EditorModel {
         case .zoomToActualSize: zoomToActualSize()
         case .zoomInAtCursor: zoomIn(anchor: hoverAnchor)
         case .zoomOutAtCursor: zoomOut(anchor: hoverAnchor)
-        case .copyColor, .copyTextColor: break
+        case .copyColor, .copyTextColor, .rulerHorizontal, .rulerVertical: break
         }
         return true
     }
@@ -212,7 +216,10 @@ extension EditorModel {
         // so the toolbar readout stays useful and Tab still copies it.
         guard isViewportZoomable, let image = sourceImage,
               imageFrame.width > 0, imageFrame.height > 0,
-              imageFrame.contains(location) else { return }
+              imageFrame.contains(location) else {
+            clearSmartRuler()
+            return
+        }
 
         let x = Int((location.x - imageFrame.minX) / imageFrame.width * CGFloat(image.width))
         let y = Int((location.y - imageFrame.minY) / imageFrame.height * CGFloat(image.height))
@@ -220,12 +227,14 @@ extension EditorModel {
         let py = min(max(y, 0), image.height - 1)
 
         if let current = hoveredPixel, current.x == px, current.y == py { return }
+        updateSmartRuler(pixelX: px, pixelY: py, image: image)
         hoveredPixel = Self.samplePixels(in: image, around: CGPoint(x: px, y: py), radius: 0)
             .first.map { EditorHoveredPixel(x: px, y: py, red: $0.0, green: $0.1, blue: $0.2) }
     }
 
     func clearHover() {
         hoverAnchor = nil
+        clearSmartRuler()
     }
 
     /// Copies the hovered color. With `darkestNearby`, copies the darkest pixel in a

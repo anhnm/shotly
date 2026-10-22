@@ -184,6 +184,26 @@ struct EditorCanvasView: View {
                         )
                     }
 
+                    // Smart ruler: live spans under the cursor; click to keep them.
+                    ForEach(Array(model.smartRulerItems.enumerated()), id: \.offset) { _, item in
+                        AnnotationItemView(
+                            item: displayItem(item, zoom: zoom),
+                            image: NSImage(),
+                            sourceImage: nil,
+                            originalImageSize: model.imageSize,
+                            imageFrame: sourceImageFrame,
+                            canvasFrame: canvasFrame,
+                            isSelected: false,
+                            showsResizeHandles: false,
+                            isEditingText: false,
+                            allowsRedactionPreviewCaching: false,
+                            text: .constant(""),
+                            onCommitText: {},
+                            onTextSizeChange: { _ in }
+                        )
+                        .opacity(0.85)
+                    }
+
                     if let selectionRect = model.selectionRect {
                         let viewSel = viewRect(selectionRect, in: sourceImageFrame)
                         AnnotationMarqueeSelectionView()
@@ -407,15 +427,6 @@ private struct CanvasBackgroundView: View {
                 Rectangle().fill(.quaternary)
             }
 
-        case .bundledImage(let assetID):
-            if let asset = BundledBackgrounds.asset(byID: assetID),
-               let nsImage = asset.image {
-                Image(nsImage: nsImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } else {
-                Rectangle().fill(.quaternary)
-            }
         }
     }
 }

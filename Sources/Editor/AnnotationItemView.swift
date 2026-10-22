@@ -39,6 +39,14 @@ struct AnnotationItemView: View {
                     canvasFrame: canvasFrame ?? imageFrame,
                     viewBounds: viewBounds
                 )
+            } else if item.tool == .magnifier {
+                MagnifierPreview(
+                    item: item,
+                    image: image,
+                    imageFrame: imageFrame,
+                    canvasFrame: canvasFrame ?? imageFrame,
+                    viewBounds: viewBounds
+                )
             } else if item.tool.isFilledShape {
                 itemPath
                     .fill(fillStyle)
@@ -110,7 +118,7 @@ struct AnnotationItemView: View {
         case .pixelate, .blur, .spotlight:
             return Path(rect)
 
-        case .numberedCircle:
+        case .numberedCircle, .magnifier:
             return Path(ellipseIn: rect)
 
         case .text:
@@ -184,6 +192,11 @@ struct AnnotationItemView: View {
                     height: max(viewBounds.height + selectionOutset * 2, 18)
                 )
                 .position(x: viewBounds.midX, y: viewBounds.midY)
+
+            if let tip = item.badgePointerTip(imageSize: originalImageSize) {
+                CurveControlHandle()
+                    .position(viewPoint(tip))
+            }
         }
     }
 
@@ -363,15 +376,21 @@ private struct NumberedCircleAnnotationView: View {
     var body: some View {
         let diameter = min(max(viewBounds.width, 1), max(viewBounds.height, 1))
 
+        let shape = BadgeShape(style: item.badgeStyle, angle: item.pointerAngle)
+
         ZStack {
-            Circle()
+            shape
                 .fill(item.swatch.color)
                 .overlay {
-                    Circle()
+                    shape
                         .stroke(
                             item.swatch.numberedCircleOutlineColor,
-                            lineWidth: AnnotationNumberedCircleMetrics.outlineWidth(for: diameter)
+                            style: StrokeStyle(
+                                lineWidth: AnnotationNumberedCircleMetrics.outlineWidth(for: diameter) * 2,
+                                lineJoin: .round
+                            )
                         )
+                        .clipShape(shape)
                 }
 
             Text(item.text)
@@ -387,6 +406,20 @@ private struct NumberedCircleAnnotationView: View {
         }
         .frame(width: max(viewBounds.width, 1), height: max(viewBounds.height, 1))
         .position(x: viewBounds.midX, y: viewBounds.midY)
+    }
+}
+
+/// Badge outline sized to the circle's frame; the pointer extends past it.
+private struct BadgeShape: Shape {
+    let style: AnnotationBadgeStyle
+    let angle: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        Path(style.path(
+            center: CGPoint(x: rect.midX, y: rect.midY),
+            radius: min(rect.width, rect.height) / 2,
+            angle: angle
+        ))
     }
 }
 
@@ -753,6 +786,36 @@ private struct CurveControlHandle: View {
 
 private enum AnnotationSelectionStyle {
     static let color = Color.accentColor.opacity(0.5)
+}
+
+/// Live magnifier: the screenshot enlarged around the circle's centre, with a ring.
+private struct MagnifierPreview: View {
+    let item: AnnotationItem
+    let image: NSImage
+    let imageFrame: CGRect
+    let canvasFrame: CGRect
+    let viewBounds: CGRect
+
+    var body: some View {
+        let lineWidth = item.strokeWidth
+        Canvas { context, _ in
+            let circle = CGRect(origin: .zero, size: viewBounds.size)
+            let localImage = imageFrame.offsetBy(dx: -viewBounds.minX, dy: -viewBounds.minY)
+            context.clip(to: Path(ellipseIn: circle))
+            context.draw(
+                Image(nsImage: image).interpolation(item.magnification >= 3 ? .none : .high),
+                in: AnnotationMagnifierMetrics.zoomedImageRect(localImage, circle: circle, magnification: item.magnification)
+            )
+            context.stroke(
+                Path(ellipseIn: circle.insetBy(dx: lineWidth / 2, dy: lineWidth / 2)),
+                with: .color(item.swatch.color),
+                lineWidth: lineWidth
+            )
+        }
+        .frame(width: max(viewBounds.width, 1), height: max(viewBounds.height, 1))
+        .position(x: viewBounds.midX, y: viewBounds.midY)
+        .allowsHitTesting(false)
+    }
 }
 
 private struct SpotlightPreview: View {

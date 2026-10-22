@@ -1,5 +1,8 @@
 import AppKit
+import OSLog
 import SwiftUI
+
+private let pipelineLog = Logger(subsystem: "com.shotly.app", category: "capture")
 
 /// Coordinates the full capture pipeline: hide window -> capture -> sound -> preview/editor.
 @MainActor
@@ -66,6 +69,7 @@ final class CaptureOrchestrator {
 
         do {
             guard let url = try await capture() else { return }
+            let capturedAt = ContinuousClock.now
 
             ScreenCapture.shared.playShutterSound()
 
@@ -89,7 +93,8 @@ final class CaptureOrchestrator {
                     capturedURL,
                     recordID: record?.id,
                     metadata: metadata,
-                    on: targetScreen
+                    on: targetScreen,
+                    capturedAt: capturedAt
                 )
             }
         } catch {
@@ -148,7 +153,8 @@ final class CaptureOrchestrator {
         _ url: URL,
         recordID: UUID? = nil,
         metadata: CaptureMetadata? = nil,
-        on targetScreen: NSScreen? = nil
+        on targetScreen: NSScreen? = nil,
+        capturedAt: ContinuousClock.Instant = .now
     ) async {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return }
@@ -179,6 +185,7 @@ final class CaptureOrchestrator {
 
         // Rendering the backdrop and encoding the file take long enough on a Retina
         // capture to freeze the UI right after the selection, so do both off the main actor.
+        let renderStarted = ContinuousClock.now
         let job = UncheckedSendable((cgImage, config, annotations, metadata, showMeta, activePreset))
         let result = await Task.detached(priority: .userInitiated) { () -> UncheckedSendable<(CGImage, URL?)>? in
             let (image, config, annotations, metadata, showMeta, preset) = job.value
@@ -195,6 +202,7 @@ final class CaptureOrchestrator {
         }.value
 
         guard let (rendered, outputURL) = result?.value else { return }
+        let renderMilliseconds = renderStarted.duration(to: .now).milliseconds
 
         if automaticallySaves, let outputURL {
             saveBaseImage(rawURL: url, alongside: outputURL)
@@ -232,6 +240,7 @@ final class CaptureOrchestrator {
         }
 
         PreviewOverlay.shared.show(url: displayURL, on: targetScreen)
+        pipelineLog.notice("Preview shown \(capturedAt.duration(to: .now).milliseconds, privacy: .public) ms after capture (render and write \(renderMilliseconds, privacy: .public) ms)")
 
         if !automaticallySaves, outputURL != nil, url != outputURL {
             try? FileManager.default.removeItem(at: url)

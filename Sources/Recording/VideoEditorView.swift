@@ -198,17 +198,6 @@ struct VideoEditorView: View {
             } else {
                 Rectangle().fill(.quaternary)
             }
-        case .bundledImage(let assetID):
-            if let asset = BundledBackgrounds.asset(byID: assetID),
-               let nsImage = asset.image {
-                Image(nsImage: nsImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: size.width, height: size.height)
-                    .clipped()
-            } else {
-                Rectangle().fill(.quaternary)
-            }
         }
     }
 
@@ -491,16 +480,6 @@ private struct VideoBackgroundSection: View {
                 }
             }
 
-            Text("macOS")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-
-            LazyVGrid(columns: Array(repeating: GridItem(.fixed(48), spacing: 6), count: 4), spacing: 6) {
-                ForEach(BundledBackgrounds.macAssets) { asset in
-                    bundledImageButton(asset)
-                }
-            }
-
             customImageSection
         }
         .padding(.horizontal, 14)
@@ -573,34 +552,6 @@ private struct VideoBackgroundSection: View {
         }
         .buttonStyle(.plain)
         .help(preset.name)
-    }
-
-    private func bundledImageButton(_ asset: BundledBackgrounds.ImageAsset) -> some View {
-        let isSelected: Bool = {
-            if case .bundledImage(let id) = model.config.style { return id == asset.id }
-            return false
-        }()
-
-        return Button {
-            model.config.style = .bundledImage(asset.id)
-        } label: {
-            Group {
-                if let image = asset.image {
-                    Image(nsImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } else {
-                    Rectangle().fill(.quaternary)
-                }
-            }
-            .frame(width: 48, height: 36)
-            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .strokeBorder(isSelected ? Color.accentColor : Color.primary.opacity(0.12), lineWidth: isSelected ? 2 : 0.5)
-            )
-        }
-        .buttonStyle(.plain)
     }
 
     @ViewBuilder

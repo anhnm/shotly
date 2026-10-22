@@ -38,8 +38,11 @@ bấm ra ngoài; chụp nhiều ảnh liên tiếp thì ghép được thành co
 - Màu dưới con trỏ hiện trên thanh công cụ: `Tab` copy mã màu, `⇧Tab` copy màu chữ gần đó.
 - Đổi kích thước ảnh, crop, ghim ảnh lên màn hình.
 - Chú thích: khung (bo góc / vuông / nét đứt / đặc), hình tròn, đường thẳng, mũi tên cong, vẽ tay,
-  chữ, số thứ tự, thước đo, blur/mosaic, spotlight. Mỗi công cụ một phím: `V T M R D A B G N O L`.
-- Backdrop: nền màu, gradient, hình nền macOS hoặc ảnh riêng; padding, bo góc, bóng đổ; watermark và metadata.
+  chữ, blur/mosaic, spotlight, kính lúp (phóng 1.5–4×). Mỗi công cụ một phím: `V T M R D A B G X N O L`.
+- Số thứ tự dạng tròn hoặc có đuôi trỏ (giọt nước, bong bóng), kéo đầu trỏ để xoay hướng.
+- Thước đo thông minh: rê chuột là tự bắt cạnh và hiện kích thước vùng dưới con trỏ, bấm để giữ lại,
+  phím mũi tên để chỉ đo ngang hoặc dọc; vẫn kéo tay để đo tự do được.
+- Backdrop: nền màu, gradient hoặc ảnh riêng; padding, bo góc, bóng đổ; watermark và metadata.
 
 ### Khác
 

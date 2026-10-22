@@ -292,13 +292,6 @@ final class VideoEditorModel {
                 layer.contents = cgImage
                 layer.contentsGravity = .resizeAspectFill
             }
-        case .bundledImage(let assetID):
-            if let asset = BundledBackgrounds.asset(byID: assetID),
-               let nsImage = asset.image,
-               let cgImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-                layer.contents = cgImage
-                layer.contentsGravity = .resizeAspectFill
-            }
         }
     }
 

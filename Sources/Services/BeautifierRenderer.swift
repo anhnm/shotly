@@ -160,11 +160,6 @@ enum BeautifierRenderer {
             guard let wallpaperImage = loadImage(at: source.path) else { return }
             ctx.draw(wallpaperImage, in: rect)
 
-        case .bundledImage(let assetID):
-            guard let asset = BundledBackgrounds.asset(byID: assetID),
-                  let url = asset.url,
-                  let bgImage = loadImage(at: url.path) else { return }
-            ctx.draw(bgImage, in: rect)
         }
     }
 

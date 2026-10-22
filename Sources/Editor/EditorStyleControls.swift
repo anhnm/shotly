@@ -91,7 +91,7 @@ struct RectangleStylePicker: View {
         HStack(spacing: 2) {
             ForEach(AnnotationShapeStyle.allCases) { option in
                 let isSelected = !isFilled && style == option
-                segment(isSelected: isSelected, title: option.title) {
+                StylePickerSegment(isSelected: isSelected, title: option.title) {
                     onSelectStyle(option)
                 } icon: {
                     outlineIcon(for: option, color: iconColor(isSelected))
@@ -104,18 +104,14 @@ struct RectangleStylePicker: View {
                 .padding(.horizontal, 3)
                 .accessibilityHidden(true)
 
-            segment(isSelected: isFilled, title: "Filled") {
+            StylePickerSegment(isSelected: isFilled, title: "Filled") {
                 onSelectFilled()
             } icon: {
                 RoundedRectangle(cornerRadius: 4, style: .continuous)
                     .fill(iconColor(isFilled))
             }
         }
-        .padding(3)
-        .background(
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(Color.primary.opacity(0.08))
-        )
+        .stylePickerGroup()
     }
 
     private func iconColor(_ isSelected: Bool) -> Color {
@@ -137,12 +133,85 @@ struct RectangleStylePicker: View {
         }
     }
 
-    private func segment<Icon: View>(
-        isSelected: Bool,
-        title: String,
-        action: @escaping () -> Void,
-        @ViewBuilder icon: () -> Icon
-    ) -> some View {
+}
+
+// MARK: - Badge Style Picker
+
+/// Numbered badge shapes: a plain circle or one of two pointer styles.
+struct BadgeStylePicker: View {
+    let style: AnnotationBadgeStyle
+    let onSelect: (AnnotationBadgeStyle) -> Void
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(AnnotationBadgeStyle.allCases) { option in
+                let isSelected = style == option
+                StylePickerSegment(isSelected: isSelected, title: option.title) {
+                    onSelect(option)
+                } icon: {
+                    BadgeIconShape(style: option)
+                        .fill(isSelected ? Color.white : Color.primary)
+                }
+            }
+        }
+        .stylePickerGroup()
+    }
+}
+
+/// Badge outline fitted inside its frame, pointer aimed down-right.
+private struct BadgeIconShape: Shape {
+    let style: AnnotationBadgeStyle
+
+    func path(in rect: CGRect) -> Path {
+        let angle = AnnotationBadgeStyle.defaultPointerAngle
+        let reach = (1 + style.tipDistance * cos(angle)) / 2
+        let radius = min(rect.width, rect.height) / 2 / max(reach, 1)
+        let center = CGPoint(x: rect.minX + radius, y: rect.minY + radius)
+        let offset = style.hasPointer ? 0 : min(rect.width, rect.height) / 2 - radius
+        return Path(style.path(
+            center: CGPoint(x: center.x + offset, y: center.y + offset),
+            radius: radius,
+            angle: angle
+        ))
+    }
+}
+
+// MARK: - Magnification Picker
+
+/// Zoom levels for the magnifier tool.
+struct MagnificationPicker: View {
+    let value: CGFloat
+    let onSelect: (CGFloat) -> Void
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(AnnotationMagnifierMetrics.magnifications, id: \.self) { option in
+                let isSelected = value == option
+                let title = AnnotationMagnifierMetrics.title(for: option)
+                StylePickerSegment(isSelected: isSelected, title: "Zoom \(title)") {
+                    onSelect(option)
+                } icon: {
+                    Text(title)
+                        .font(.system(size: 11, weight: .semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(isSelected ? Color.white : Color.primary)
+                        .fixedSize()
+                }
+            }
+        }
+        .stylePickerGroup()
+    }
+}
+
+// MARK: - Shared segments
+
+private struct StylePickerSegment<Icon: View>: View {
+    let isSelected: Bool
+    let title: String
+    let action: () -> Void
+    @ViewBuilder let icon: () -> Icon
+
+    var body: some View {
         Button(action: action) {
             icon()
                 .frame(width: 17, height: 13)
@@ -157,5 +226,15 @@ struct RectangleStylePicker: View {
         .help(title)
         .accessibilityLabel(title)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+private extension View {
+    func stylePickerGroup() -> some View {
+        padding(3)
+            .background(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(Color.primary.opacity(0.08))
+            )
     }
 }

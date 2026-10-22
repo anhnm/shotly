@@ -9,6 +9,8 @@ enum AnnotationResizeHandle: CaseIterable {
     case start
     case control
     case end
+    /// Tip of a numbered badge's pointer; dragging it rotates the pointer.
+    case pointer
 
     static var boxCases: [AnnotationResizeHandle] {
         [.topLeft, .topRight, .bottomLeft, .bottomRight]
@@ -36,7 +38,7 @@ enum AnnotationResizeHandle: CaseIterable {
             CGPoint(x: rect.minX, y: rect.maxY)
         case .bottomRight:
             CGPoint(x: rect.maxX, y: rect.maxY)
-        case .start, .control, .end:
+        case .start, .control, .end, .pointer:
             nil
         }
     }
@@ -51,7 +53,7 @@ enum AnnotationResizeHandle: CaseIterable {
             CGPoint(x: rect.maxX, y: rect.minY)
         case .bottomRight:
             CGPoint(x: rect.minX, y: rect.minY)
-        case .start, .control, .end:
+        case .start, .control, .end, .pointer:
             .zero
         }
     }
@@ -66,7 +68,7 @@ enum AnnotationResizeHandle: CaseIterable {
             CGPoint(x: min(point.x, anchor.x - minimumSize), y: max(point.y, anchor.y + minimumSize))
         case .bottomRight:
             CGPoint(x: max(point.x, anchor.x + minimumSize), y: max(point.y, anchor.y + minimumSize))
-        case .start, .control, .end:
+        case .start, .control, .end, .pointer:
             point
         }
     }
@@ -79,7 +81,7 @@ enum AnnotationResizeHandle: CaseIterable {
             item.arrowCurveHandle
         case .end:
             item.points.last
-        case .topLeft, .topRight, .bottomLeft, .bottomRight:
+        case .topLeft, .topRight, .bottomLeft, .bottomRight, .pointer:
             nil
         }
     }
@@ -209,6 +211,94 @@ enum AnnotationShapeStyle: String, CaseIterable, Identifiable {
         guard self == .dashed else { return nil }
         let unit = max(lineWidth, 1)
         return [unit * 2.5, unit * 2.5]
+    }
+}
+
+/// Shape of a numbered badge: a plain circle, or a circle with a pointer
+/// that can be rotated to aim at something.
+enum AnnotationBadgeStyle: String, CaseIterable, Identifiable {
+    case circle
+    case drop
+    case callout
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .circle: "Circle"
+        case .drop: "Teardrop pointer"
+        case .callout: "Callout pointer"
+        }
+    }
+
+    var hasPointer: Bool { self != .circle }
+
+    /// Distance from the centre to the pointer tip, in radii.
+    var tipDistance: CGFloat {
+        switch self {
+        case .circle: 1
+        case .drop: 2.squareRoot()
+        case .callout: 1.75
+        }
+    }
+
+    /// Half the angle the pointer's base spans on the circle.
+    private var baseHalfAngle: CGFloat {
+        switch self {
+        case .circle: 0
+        case .drop: .pi / 4
+        case .callout: .pi / 7
+        }
+    }
+
+    /// Default pointer direction: down and to the right, in y-down space.
+    static let defaultPointerAngle: CGFloat = .pi / 4
+
+    /// Badge outline. `angle` is measured in the coordinate space the path is
+    /// drawn in, so callers drawing in y-up space pass the mirrored angle.
+    func path(center: CGPoint, radius: CGFloat, angle: CGFloat) -> CGPath {
+        let path = CGMutablePath()
+        guard hasPointer else {
+            path.addEllipse(in: CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2))
+            return path
+        }
+        let tip = CGPoint(
+            x: center.x + cos(angle) * radius * tipDistance,
+            y: center.y + sin(angle) * radius * tipDistance
+        )
+        path.move(to: tip)
+        path.addArc(
+            center: center,
+            radius: radius,
+            startAngle: angle + baseHalfAngle,
+            endAngle: angle - baseHalfAngle + 2 * .pi,
+            clockwise: false
+        )
+        path.closeSubpath()
+        return path
+    }
+}
+
+enum AnnotationMagnifierMetrics {
+    static let magnifications: [CGFloat] = [1.5, 2, 3, 4]
+    static let defaultMagnification: CGFloat = 2
+
+    static func title(for magnification: CGFloat) -> String {
+        magnification.rounded() == magnification
+            ? "\(Int(magnification))×"
+            : String(format: "%.1f×", magnification)
+    }
+
+    /// Where the magnified image goes so that the circle's centre stays put:
+    /// `imageRect` scaled by `magnification` around the centre of `circle`.
+    static func zoomedImageRect(_ imageRect: CGRect, circle: CGRect, magnification: CGFloat) -> CGRect {
+        let center = CGPoint(x: circle.midX, y: circle.midY)
+        return CGRect(
+            x: center.x + (imageRect.minX - center.x) * magnification,
+            y: center.y + (imageRect.minY - center.y) * magnification,
+            width: imageRect.width * magnification,
+            height: imageRect.height * magnification
+        )
     }
 }
 
@@ -395,6 +485,12 @@ struct AnnotationItem: Identifiable, Equatable {
     var textAlignment: NSTextAlignment
     /// Outline style for rectangles.
     var shapeStyle: AnnotationShapeStyle
+    /// Shape of numbered badges.
+    var badgeStyle: AnnotationBadgeStyle
+    /// Direction of a badge's pointer in radians, in y-down pixel space.
+    var pointerAngle: CGFloat
+    /// Zoom factor of magnifier annotations.
+    var magnification: CGFloat
 
     init(
         id: UUID = UUID(),
@@ -411,7 +507,10 @@ struct AnnotationItem: Identifiable, Equatable {
         isItalic: Bool = false,
         isUnderline: Bool = false,
         textAlignment: NSTextAlignment = .left,
-        shapeStyle: AnnotationShapeStyle = .sharp
+        shapeStyle: AnnotationShapeStyle = .sharp,
+        badgeStyle: AnnotationBadgeStyle = .circle,
+        pointerAngle: CGFloat = AnnotationBadgeStyle.defaultPointerAngle,
+        magnification: CGFloat = AnnotationMagnifierMetrics.defaultMagnification
     ) {
         self.id = id
         self.tool = tool
@@ -428,6 +527,33 @@ struct AnnotationItem: Identifiable, Equatable {
         self.isUnderline = isUnderline
         self.textAlignment = textAlignment
         self.shapeStyle = shapeStyle
+        self.badgeStyle = badgeStyle
+        self.pointerAngle = pointerAngle
+        self.magnification = magnification
+    }
+
+    /// Normalized position of a badge's pointer tip, or nil for plain circles.
+    func badgePointerTip(imageSize: CGSize) -> CGPoint? {
+        guard tool == .numberedCircle, badgeStyle.hasPointer,
+              imageSize.width > 0, imageSize.height > 0 else { return nil }
+        let bounds = bounds
+        let radius = min(bounds.width * imageSize.width, bounds.height * imageSize.height) / 2
+        let distance = radius * badgeStyle.tipDistance
+        return CGPoint(
+            x: bounds.midX + cos(pointerAngle) * distance / imageSize.width,
+            y: bounds.midY + sin(pointerAngle) * distance / imageSize.height
+        )
+    }
+
+    /// Returns a copy whose pointer aims at `point` (normalized).
+    func pointing(at point: CGPoint, imageSize: CGSize) -> AnnotationItem {
+        let bounds = bounds
+        let dx = (point.x - bounds.midX) * imageSize.width
+        let dy = (point.y - bounds.midY) * imageSize.height
+        guard hypot(dx, dy) > 0.5 else { return self }
+        var item = self
+        item.pointerAngle = atan2(dy, dx)
+        return item
     }
 
     func resolvedFont(size: CGFloat) -> NSFont {
@@ -448,7 +574,7 @@ struct AnnotationItem: Identifiable, Equatable {
                 rect.union(CGRect(origin: point, size: .zero))
             }
             return bounds.standardized
-        case .rectangle, .filledRectangle, .ellipse, .numberedCircle, .pixelate, .blur, .spotlight, .text:
+        case .rectangle, .filledRectangle, .ellipse, .numberedCircle, .magnifier, .pixelate, .blur, .spotlight, .text:
             return rect.standardized
         }
     }
@@ -504,7 +630,7 @@ struct AnnotationItem: Identifiable, Equatable {
         case .freehand:
             guard points.count >= 2 else { return false }
             return pathLength(points) >= minimumSize
-        case .rectangle, .filledRectangle, .ellipse, .numberedCircle, .pixelate, .blur, .spotlight:
+        case .rectangle, .filledRectangle, .ellipse, .numberedCircle, .magnifier, .pixelate, .blur, .spotlight:
             return bounds.width >= minimumSize && bounds.height >= minimumSize
         case .text:
             return bounds.width >= minimumSize
@@ -547,7 +673,7 @@ struct AnnotationItem: Identifiable, Equatable {
         case .rectangle, .filledRectangle, .pixelate, .blur, .spotlight, .text:
             return bounds.insetBy(dx: -tolerance, dy: -tolerance).contains(point)
 
-        case .ellipse, .numberedCircle:
+        case .ellipse, .numberedCircle, .magnifier:
             let expandedBounds = bounds.insetBy(dx: -tolerance, dy: -tolerance)
             guard expandedBounds.width > 0, expandedBounds.height > 0 else { return false }
 
@@ -585,7 +711,7 @@ struct AnnotationItem: Identifiable, Equatable {
         case .end:
             item.ensureArrowPointStorage()
             item.points[item.points.count - 1] = point
-        case .topLeft, .topRight, .bottomLeft, .bottomRight:
+        case .topLeft, .topRight, .bottomLeft, .bottomRight, .pointer:
             return self
         }
 
@@ -728,6 +854,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
     case pixelate
     case blur
     case spotlight
+    case magnifier
     case text
 
     var id: String { rawValue }
@@ -750,6 +877,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
         case .pixelate: "Mosaic"
         case .blur: "Blur"
         case .spotlight: "Spotlight"
+        case .magnifier: "Magnifier"
         case .text: "Text"
         }
     }
@@ -768,6 +896,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
         case .pixelate: "app.background.dotted"
         case .blur: "drop.fill"
         case .spotlight: "light.max"
+        case .magnifier: "plus.magnifyingglass"
         case .text: "textformat"
         }
     }
@@ -790,7 +919,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
 
     var usesColorStyle: Bool {
         switch self {
-        case .rectangle, .filledRectangle, .ellipse, .line, .measure, .arrow, .freehand, .numberedCircle, .text:
+        case .rectangle, .filledRectangle, .ellipse, .line, .measure, .arrow, .freehand, .numberedCircle, .magnifier, .text:
             true
         case .select, .pixelate, .blur, .spotlight:
             false
@@ -799,7 +928,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
 
     var usesStrokeStyle: Bool {
         switch self {
-        case .rectangle, .ellipse, .line, .measure, .arrow, .freehand:
+        case .rectangle, .ellipse, .line, .measure, .arrow, .freehand, .magnifier:
             true
         case .select, .filledRectangle, .numberedCircle, .pixelate, .blur, .spotlight, .text:
             false
@@ -818,7 +947,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .rectangle, .filledRectangle, .ellipse, .spotlight:
             true
-        case .select, .line, .measure, .arrow, .freehand, .numberedCircle, .pixelate, .blur, .text:
+        case .select, .line, .measure, .arrow, .freehand, .numberedCircle, .magnifier, .pixelate, .blur, .text:
             false
         }
     }

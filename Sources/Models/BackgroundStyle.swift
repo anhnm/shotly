@@ -7,6 +7,25 @@ enum BackgroundStyle: Codable, Equatable, Hashable {
     case solid(SolidColor)
     case gradient(GradientPreset)
     case wallpaper(WallpaperSource)
+
+    init(from decoder: Decoder) throws {
+        switch try StoredBackgroundStyle(from: decoder) {
+        case .none: self = .none
+        case .solid(let color): self = .solid(color)
+        case .gradient(let preset): self = .gradient(preset)
+        case .wallpaper(let source): self = .wallpaper(source)
+        case .bundledImage: self = .gradient(GradientPreset.presets[0])
+        }
+    }
+}
+
+/// Decoding shape for saved configs. Versions before 2.1 bundled macOS wallpapers;
+/// configs that picked one fall back to a gradient.
+private enum StoredBackgroundStyle: Decodable {
+    case none
+    case solid(SolidColor)
+    case gradient(GradientPreset)
+    case wallpaper(WallpaperSource)
     case bundledImage(String)
 }
 

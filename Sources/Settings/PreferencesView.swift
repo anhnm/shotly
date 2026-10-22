@@ -489,7 +489,6 @@ struct BackdropSettingsTab: View {
         case .solid(let c): return c.name
         case .gradient(let g): return g.name
         case .wallpaper: return "Custom Image"
-        case .bundledImage: return "macOS Wallpaper"
         }
     }
 }
@@ -513,12 +512,6 @@ private struct DefaultBackgroundPicker: View {
             LazyVGrid(columns: swatchColumns, spacing: 5) {
                 ForEach(GradientPreset.presets) { preset in
                     gradientButton(preset)
-                }
-            }
-
-            LazyVGrid(columns: Array(repeating: GridItem(.fixed(38), spacing: 5), count: 6), spacing: 5) {
-                ForEach(BundledBackgrounds.macAssets) { asset in
-                    bundledImageButton(asset)
                 }
             }
 
@@ -590,34 +583,6 @@ private struct DefaultBackgroundPicker: View {
         }
         .buttonStyle(.plain)
         .help(preset.name)
-    }
-
-    private func bundledImageButton(_ asset: BundledBackgrounds.ImageAsset) -> some View {
-        let isSelected: Bool = {
-            if case .bundledImage(let id) = selectedStyle { return id == asset.id }
-            return false
-        }()
-
-        return Button {
-            selectedStyle = .bundledImage(asset.id)
-        } label: {
-            Group {
-                if let image = asset.image {
-                    Image(nsImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } else {
-                    Rectangle().fill(.quaternary)
-                }
-            }
-            .frame(width: 38, height: 28)
-            .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .strokeBorder(isSelected ? Color.accentColor : Color.primary.opacity(0.12), lineWidth: isSelected ? 2 : 0.5)
-            )
-        }
-        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -788,15 +753,6 @@ private struct DefaultConfigPreview: View {
             } else {
                 Rectangle().fill(.quaternary)
             }
-        case .bundledImage(let assetID):
-            if let asset = BundledBackgrounds.asset(byID: assetID),
-               let nsImage = asset.image {
-                Image(nsImage: nsImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } else {
-                Rectangle().fill(.quaternary)
-            }
         }
     }
 
@@ -883,7 +839,7 @@ private struct EditorKeyReference: View {
     private static let entries: [(String, String)] = {
         let tools: [AnnotationTool] = [
             .select, .text, .measure, .rectangle, .filledRectangle, .freehand,
-            .arrow, .blur, .spotlight, .numberedCircle, .ellipse, .line,
+            .arrow, .blur, .spotlight, .magnifier, .numberedCircle, .ellipse, .line,
         ]
         var result = tools.map { ($0.shortcutHint, $0.title) }
         result += [

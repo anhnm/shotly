@@ -11,6 +11,19 @@ settings:
     SWIFT_VERSION: "6.0"
     MACOSX_DEPLOYMENT_TARGET: "14.0"
     ENABLE_USER_SCRIPT_SANDBOXING: false
+  configs:
+    Release:
+      # Keep the download small: optimize for size, strip symbols and dead code,
+      # and let actool compress the asset catalog harder.
+      SWIFT_OPTIMIZATION_LEVEL: "-Osize"
+      SWIFT_COMPILATION_MODE: wholemodule
+      DEAD_CODE_STRIPPING: true
+      DEPLOYMENT_POSTPROCESSING: true
+      STRIP_INSTALLED_PRODUCT: true
+      STRIP_STYLE: all
+      STRIP_SWIFT_SYMBOLS: true
+      DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+      ASSETCATALOG_COMPILER_OPTIMIZATION: space
 
 targets:
   Shotly:
@@ -19,9 +32,6 @@ targets:
     sources:
       - Sources
       - path: Resources/Assets.xcassets
-        buildPhase: resources
-      - path: Resources/Backgrounds
-        type: folder
         buildPhase: resources
     settings:
       base:

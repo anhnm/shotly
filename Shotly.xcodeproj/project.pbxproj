@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		004B6C914B6D1BE384FE0316 /* AnnotationEditorInteractionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1377AF1DC7E44975737993A7 /* AnnotationEditorInteractionState.swift */; };
 		00D5DFE560E704990308B621 /* WatermarkPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F1053F046FB490B582AB907 /* WatermarkPreset.swift */; };
-		03729A0811C7986EB43F18F0 /* BundledBackgrounds.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8ED3A4369169E83E53E1E0F /* BundledBackgrounds.swift */; };
 		1336E52D8DE08CB3824CA55F /* EditorWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FE32912024C38BDB6BEE5E3 /* EditorWindowView.swift */; };
 		1800499FFE667C9A82C53A01 /* EditorInspectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1061BB4A840DDF45A009D53 /* EditorInspectorView.swift */; };
 		1A05BBBBF0880944F48F9B82 /* ToastWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB68F204A779DD8BF3A4A6E7 /* ToastWindow.swift */; };
@@ -31,6 +30,7 @@
 		6CBA6056726F27F2A3EDDD17 /* EditorInfoCluster.swift in Sources */ = {isa = PBXBuildFile; fileRef = A360248F9967623B0A3DEA10 /* EditorInfoCluster.swift */; };
 		7050E1901678911B6575FF30 /* EditorModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6851DF30C49F8CD9B66E9143 /* EditorModel.swift */; };
 		78EC707FE4DCA555348988C6 /* PreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2D2586A313E086FE118365 /* PreferencesView.swift */; };
+		7B59FEEE7928063BD0BAEEC9 /* EditorModel+SmartRuler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F20316D99B3032C751C65A0 /* EditorModel+SmartRuler.swift */; };
 		7D09E5FB730728F7D39FBC48 /* ShortcutTooltip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 442CC97A0A1FECBF9D5F000B /* ShortcutTooltip.swift */; };
 		831D3EDFFCD29F419CE1C4BD /* RegionSelectionOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17382F93A131157965017712 /* RegionSelectionOverlay.swift */; };
 		86774149FA8A80CA3B6D4DC3 /* CollageState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8402B9B9A95E3B8DCC0919E /* CollageState.swift */; };
@@ -41,7 +41,6 @@
 		9BCBCF79810622935698504F /* ShotlyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFF1BE26FCA034CBECDFF082 /* ShotlyApp.swift */; };
 		9FCF3013EFCD09293693C220 /* EditorCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A19C1291D6018CD5640A265 /* EditorCanvasView.swift */; };
 		AD0AF3DB3073BB151B6E5082 /* EditorStyleControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BFD3E48023E32AC2277EBD /* EditorStyleControls.swift */; };
-		AFB704FD76C28E5A3FF2FABD /* Backgrounds in Resources */ = {isa = PBXBuildFile; fileRef = 95E9242A816B25DE882C1BF4 /* Backgrounds */; };
 		B67C6EECC14CB8805CDF5AEA /* ShotlyDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2AA034AF34DF7491E4573A3 /* ShotlyDelegate.swift */; };
 		B7F866A9D820FEC7DAA3A21A /* AnnotationKeyboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37854711456E3EDA84014B35 /* AnnotationKeyboard.swift */; };
 		BB2752970C0353E5802C021E /* OCRTranslationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C52E161703BE116340B9557D /* OCRTranslationWindow.swift */; };
@@ -69,6 +68,7 @@
 
 /* Begin PBXFileReference section */
 		0CB458124274CB246EF04267 /* MenuBarPopoverController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarPopoverController.swift; sourceTree = "<group>"; };
+		0F20316D99B3032C751C65A0 /* EditorModel+SmartRuler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EditorModel+SmartRuler.swift"; sourceTree = "<group>"; };
 		0FCB256AACE1C1A7AF4AEEEE /* CaptureOrchestrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureOrchestrator.swift; sourceTree = "<group>"; };
 		100A9C8A3D4E557E34D28ADB /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		1377AF1DC7E44975737993A7 /* AnnotationEditorInteractionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationEditorInteractionState.swift; sourceTree = "<group>"; };
@@ -99,7 +99,6 @@
 		76A3EFFACE27FF29BF5DD438 /* AppPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPreferences.swift; sourceTree = "<group>"; };
 		7BF34023B42D9CCC87106E84 /* CanvasViewportEventView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasViewportEventView.swift; sourceTree = "<group>"; };
 		7E92D014505BCC8C896FC936 /* BeautifierRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeautifierRenderer.swift; sourceTree = "<group>"; };
-		95E9242A816B25DE882C1BF4 /* Backgrounds */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Backgrounds; path = Resources/Backgrounds; sourceTree = SOURCE_ROOT; };
 		9A19C1291D6018CD5640A265 /* EditorCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorCanvasView.swift; sourceTree = "<group>"; };
 		A360248F9967623B0A3DEA10 /* EditorInfoCluster.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorInfoCluster.swift; sourceTree = "<group>"; };
 		AA2D2586A313E086FE118365 /* PreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesView.swift; sourceTree = "<group>"; };
@@ -113,7 +112,6 @@
 		CB68F204A779DD8BF3A4A6E7 /* ToastWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastWindow.swift; sourceTree = "<group>"; };
 		CC750AD97240B91A3D7EB8A6 /* AnnotationDrawing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationDrawing.swift; sourceTree = "<group>"; };
 		CFF1BE26FCA034CBECDFF082 /* ShotlyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShotlyApp.swift; sourceTree = "<group>"; };
-		D8ED3A4369169E83E53E1E0F /* BundledBackgrounds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundledBackgrounds.swift; sourceTree = "<group>"; };
 		DAE61FF3DDAB05A570CA4CD6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		DC338AE402FEAD036AD1375E /* ScreenRecordingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenRecordingManager.swift; sourceTree = "<group>"; };
 		DDFFB16D3CF101F8AB6060DE /* SmartBlurDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartBlurDetector.swift; sourceTree = "<group>"; };
@@ -154,7 +152,6 @@
 		0599AEF41CE5BEFB768B8168 = {
 			isa = PBXGroup;
 			children = (
-				95E9242A816B25DE882C1BF4 /* Backgrounds */,
 				705615720091D5B361AF90F9 /* Resources */,
 				AA0CD5A454F2BF93EE6104A6 /* Sources */,
 				6301F540D958115D6D93CD11 /* Products */,
@@ -182,7 +179,6 @@
 				75803CB35255569A2FD6407E /* AppPaths.swift */,
 				76A3EFFACE27FF29BF5DD438 /* AppPreferences.swift */,
 				DEBD41D4035729B9908CB7D6 /* BackgroundStyle.swift */,
-				D8ED3A4369169E83E53E1E0F /* BundledBackgrounds.swift */,
 				57198C6859C7B575BC3E0649 /* CaptureRecord.swift */,
 				B8402B9B9A95E3B8DCC0919E /* CollageState.swift */,
 				1F1053F046FB490B582AB907 /* WatermarkPreset.swift */,
@@ -285,6 +281,7 @@
 				A360248F9967623B0A3DEA10 /* EditorInfoCluster.swift */,
 				E1061BB4A840DDF45A009D53 /* EditorInspectorView.swift */,
 				6851DF30C49F8CD9B66E9143 /* EditorModel.swift */,
+				0F20316D99B3032C751C65A0 /* EditorModel+SmartRuler.swift */,
 				C522C471A68E43F4F5E77938 /* EditorModel+Viewport.swift */,
 				E9BFD3E48023E32AC2277EBD /* EditorStyleControls.swift */,
 				BCA394DD75830BCC4D344F96 /* EditorWindowController.swift */,
@@ -364,7 +361,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				9163803C6844247779C394CE /* Assets.xcassets in Resources */,
-				AFB704FD76C28E5A3FF2FABD /* Backgrounds in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -387,7 +383,6 @@
 				37B49A82B0F2D954CA900C5F /* AppUpdater.swift in Sources */,
 				D18E7C305BF1708370C92489 /* BackgroundStyle.swift in Sources */,
 				51AA2AAC29785D2B444BC5DC /* BeautifierRenderer.swift in Sources */,
-				03729A0811C7986EB43F18F0 /* BundledBackgrounds.swift in Sources */,
 				CA2BE1968BE864ACE293475F /* BuyMeACoffeeSheet.swift in Sources */,
 				F97933DFD7118C647F310193 /* CanvasViewportEventView.swift in Sources */,
 				6B87AD0EE4B7C158014670C1 /* CaptureOrchestrator.swift in Sources */,
@@ -398,6 +393,7 @@
 				9FCF3013EFCD09293693C220 /* EditorCanvasView.swift in Sources */,
 				6CBA6056726F27F2A3EDDD17 /* EditorInfoCluster.swift in Sources */,
 				1800499FFE667C9A82C53A01 /* EditorInspectorView.swift in Sources */,
+				7B59FEEE7928063BD0BAEEC9 /* EditorModel+SmartRuler.swift in Sources */,
 				86F99487CBAA1885092B970D /* EditorModel+Viewport.swift in Sources */,
 				7050E1901678911B6575FF30 /* EditorModel.swift in Sources */,
 				AD0AF3DB3073BB151B6E5082 /* EditorStyleControls.swift in Sources */,
@@ -505,6 +501,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_OPTIMIZATION = space;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -535,7 +532,9 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEPLOYMENT_POSTPROCESSING = YES;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -552,8 +551,11 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
+				STRIP_INSTALLED_PRODUCT = YES;
+				STRIP_STYLE = all;
+				STRIP_SWIFT_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_OPTIMIZATION_LEVEL = "-Osize";
 				SWIFT_VERSION = 6.0;
 			};
 			name = Release;

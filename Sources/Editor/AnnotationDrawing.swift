@@ -11,7 +11,7 @@ enum AnnotationDrawing {
         ctx.setLineCap(.round)
         ctx.setLineJoin(.round)
 
-        let hasRedaction = items.contains { $0.tool.isRedactionTool }
+        let hasRedaction = items.contains { $0.tool.isRedactionTool || $0.tool == .magnifier }
         let canvasSnapshot: CGImage? = hasRedaction ? ctx.makeImage() : nil
 
         for item in items {
@@ -75,6 +75,18 @@ enum AnnotationDrawing {
                         context: ctx,
                         canvasSize: fullCanvasRect.size,
                         density: item.redactionDensity,
+                        flipped: flipped
+                    )
+
+                case .magnifier:
+                    guard let canvasSnapshot else { return }
+                    drawMagnifier(
+                        item,
+                        in: renderedRect(item.bounds, in: imageRect, flipped: flipped),
+                        canvasSnapshot: canvasSnapshot,
+                        context: ctx,
+                        canvasRect: fullCanvasRect,
+                        lineWidth: lineWidth,
                         flipped: flipped
                     )
 
@@ -267,12 +279,24 @@ enum AnnotationDrawing {
         guard diameter > 1 else { return }
 
         let outlineWidth = AnnotationNumberedCircleMetrics.outlineWidth(for: diameter)
+        // Pointer angles are stored y-down; unflipped contexts are y-up.
+        let badgePath = item.badgeStyle.path(
+            center: CGPoint(x: rect.midX, y: rect.midY),
+            radius: diameter / 2,
+            angle: flipped ? item.pointerAngle : -item.pointerAngle
+        )
         context.saveGState()
         context.setFillColor(item.swatch.nsColor.cgColor)
-        context.fillEllipse(in: rect)
+        context.addPath(badgePath)
+        context.fillPath()
+        // Stroke twice as wide and clip to the shape, so the outline sits inside it.
+        context.addPath(badgePath)
+        context.clip()
+        context.addPath(badgePath)
         context.setStrokeColor(item.swatch.numberedCircleOutlineNSColor.cgColor)
-        context.setLineWidth(outlineWidth)
-        context.strokeEllipse(in: rect.insetBy(dx: outlineWidth / 2, dy: outlineWidth / 2))
+        context.setLineWidth(outlineWidth * 2)
+        context.setLineJoin(.round)
+        context.strokePath()
         context.restoreGState()
 
         let fontSize = AnnotationNumberedCircleMetrics.fontSize(for: diameter, text: item.text)
@@ -460,6 +484,41 @@ enum AnnotationDrawing {
         }
         context.restoreGState()
         ciContext.clearCaches()
+    }
+
+    /// Draws the canvas under `rect` enlarged around the circle's centre, clipped to
+    /// the circle, then rings it in the annotation color.
+    private static func drawMagnifier(
+        _ item: AnnotationItem,
+        in rect: CGRect,
+        canvasSnapshot: CGImage,
+        context: CGContext,
+        canvasRect: CGRect,
+        lineWidth: CGFloat,
+        flipped: Bool
+    ) {
+        guard rect.width >= 1, rect.height >= 1 else { return }
+        let snapshotRect = CGRect(x: 0, y: 0, width: canvasSnapshot.width, height: canvasSnapshot.height)
+        let zoomedRect = AnnotationMagnifierMetrics.zoomedImageRect(
+            snapshotRect, circle: rect, magnification: item.magnification
+        )
+
+        context.saveGState()
+        context.addEllipse(in: rect)
+        context.clip()
+        context.interpolationQuality = item.magnification >= 3 ? .none : .high
+        if flipped {
+            context.translateBy(x: 0, y: zoomedRect.minY + zoomedRect.maxY)
+            context.scaleBy(x: 1, y: -1)
+        }
+        context.draw(canvasSnapshot, in: zoomedRect)
+        context.restoreGState()
+
+        context.saveGState()
+        context.setStrokeColor(item.swatch.nsColor.cgColor)
+        context.setLineWidth(lineWidth)
+        context.strokeEllipse(in: rect.insetBy(dx: lineWidth / 2, dy: lineWidth / 2))
+        context.restoreGState()
     }
 
     private static func renderedLineWidth(for item: AnnotationItem, imageSize: CGSize) -> CGFloat {
