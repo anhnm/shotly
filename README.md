@@ -112,8 +112,6 @@ Swift 6, SwiftUI kết hợp AppKit, không dùng thư viện ngoài.
 | `Sources/Recording` | Quay màn hình và trình chỉnh video |
 | `Sources/Settings` | Cửa sổ Settings |
 | `Sources/Services` | Phím tắt toàn hệ thống, làm đẹp ảnh, watermark, cập nhật, thống kê |
-| `website/` | Trang giới thiệu shotly.anhnm.pro (tiếng Anh + `/vi`) và backend thống kê |
-| `docs/` | Ghi chú nội bộ (cài đặt analytics trên Hostinger, lịch sử thay đổi) |
 
 ## Ghi công
 

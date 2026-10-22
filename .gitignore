@@ -40,3 +40,7 @@ CLAUDE.md
 *.p12
 project.yml.bak
 version.json.bak
+
+# Website and internal notes are kept locally, not in this repository
+website/
+docs/
