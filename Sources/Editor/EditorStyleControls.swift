@@ -7,6 +7,7 @@ import SwiftUI
 struct StrokeWidthSlider: View {
     let value: CGFloat
     var range: ClosedRange<CGFloat> = 1...20
+    var title = "Stroke width"
     let onBegin: () -> Void
     let onChange: (CGFloat) -> Void
 
@@ -52,10 +53,10 @@ struct StrokeWidthSlider: View {
                 }
                 .onEnded { _ in isDragging = false }
         )
-        .help("Stroke width: \(Int(value)) px")
+        .help("\(title): \(Int(value))")
         .accessibilityElement()
-        .accessibilityLabel("Stroke width")
-        .accessibilityValue("\(Int(value)) pixels")
+        .accessibilityLabel(title)
+        .accessibilityValue("\(Int(value))")
         .accessibilityAdjustableAction { direction in
             let step: CGFloat = direction == .increment ? 1 : -1
             let next = min(max(value + step, range.lowerBound), range.upperBound)
@@ -176,30 +177,116 @@ private struct BadgeIconShape: Shape {
     }
 }
 
-// MARK: - Magnification Picker
+// MARK: - Ellipse Style Picker
 
-/// Zoom levels for the magnifier tool.
-struct MagnificationPicker: View {
-    let value: CGFloat
-    let onSelect: (CGFloat) -> Void
+/// Hand-drawn, outline, highlight and filled ellipses.
+struct EllipseStylePicker: View {
+    let style: AnnotationEllipseStyle
+    let onSelect: (AnnotationEllipseStyle) -> Void
 
     var body: some View {
         HStack(spacing: 2) {
-            ForEach(AnnotationMagnifierMetrics.magnifications, id: \.self) { option in
-                let isSelected = value == option
-                let title = AnnotationMagnifierMetrics.title(for: option)
-                StylePickerSegment(isSelected: isSelected, title: "Zoom \(title)") {
+            ForEach(AnnotationEllipseStyle.allCases) { option in
+                let isSelected = style == option
+                let color = isSelected ? Color.white : Color.primary
+                StylePickerSegment(isSelected: isSelected, title: option.title) {
                     onSelect(option)
                 } icon: {
-                    Text(title)
-                        .font(.system(size: 11, weight: .semibold))
-                        .monospacedDigit()
-                        .foregroundStyle(isSelected ? Color.white : Color.primary)
-                        .fixedSize()
+                    ZStack {
+                        if let opacity = option.fillOpacity {
+                            EllipseIconShape(style: option).fill(color.opacity(Double(opacity)))
+                        }
+                        if option != .filled {
+                            EllipseIconShape(style: option).stroke(color, lineWidth: 1.6)
+                        }
+                    }
                 }
             }
         }
         .stylePickerGroup()
+    }
+}
+
+private struct EllipseIconShape: Shape {
+    let style: AnnotationEllipseStyle
+
+    func path(in rect: CGRect) -> Path {
+        Path(style.path(in: rect.insetBy(dx: 1, dy: 1)))
+    }
+}
+
+// MARK: - Arrow Style Picker
+
+/// Outlined, bold and line arrows, plus a toggle for a head at both ends.
+struct ArrowStylePicker: View {
+    let style: AnnotationArrowStyle
+    let isDoubleHeaded: Bool
+    let onSelect: (AnnotationArrowStyle) -> Void
+    let onToggleDoubleHeaded: () -> Void
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(AnnotationArrowStyle.allCases) { option in
+                let isSelected = style == option
+                StylePickerSegment(isSelected: isSelected, title: option.title) {
+                    onSelect(option)
+                } icon: {
+                    ArrowIcon(style: option, doubleHeaded: false, color: isSelected ? .white : .primary)
+                }
+            }
+
+            Rectangle()
+                .fill(Color.primary.opacity(0.2))
+                .frame(width: 1, height: 18)
+                .padding(.horizontal, 3)
+                .accessibilityHidden(true)
+
+            StylePickerSegment(isSelected: isDoubleHeaded, title: "Arrow at both ends") {
+                onToggleDoubleHeaded()
+            } icon: {
+                ArrowIcon(style: .line, doubleHeaded: true, color: isDoubleHeaded ? .white : .primary)
+            }
+        }
+        .stylePickerGroup()
+    }
+}
+
+/// Draws a small horizontal arrow with the same geometry the canvas uses.
+private struct ArrowIcon: View {
+    let style: AnnotationArrowStyle
+    let doubleHeaded: Bool
+    let color: Color
+
+    var body: some View {
+        Canvas { context, size in
+            let start = CGPoint(x: 1, y: size.height / 2)
+            let end = CGPoint(x: size.width - 1, y: size.height / 2)
+            let control = CGPoint(x: size.width / 2, y: size.height / 2)
+            switch style {
+            case .line:
+                var path = Path()
+                path.move(to: start)
+                path.addLine(to: end)
+                for (tip, direction) in doubleHeaded ? [(end, -1.0), (start, 1.0)] : [(end, -1.0)] {
+                    path.move(to: CGPoint(x: tip.x + direction * 4, y: tip.y - 3.5))
+                    path.addLine(to: tip)
+                    path.addLine(to: CGPoint(x: tip.x + direction * 4, y: tip.y + 3.5))
+                }
+                context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
+            case .filled, .outline:
+                guard let cgPath = AnnotationArrowShape.path(
+                    start: start, control: control, end: end,
+                    lineWidth: 2.2, doubleHeaded: doubleHeaded,
+                    widthScale: style == .outline ? 1.5 : 1
+                ) else { return }
+                let path = Path(cgPath)
+                if style == .filled {
+                    context.fill(path, with: .color(color))
+                } else {
+                    context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: 1.2, lineJoin: .round))
+                }
+            }
+        }
     }
 }
 

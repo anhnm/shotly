@@ -11,6 +11,10 @@ enum AnnotationResizeHandle: CaseIterable {
     case end
     /// Tip of a numbered badge's pointer; dragging it rotates the pointer.
     case pointer
+    /// Body of a magnifier's lens; dragging it moves only the lens.
+    case lens
+    /// Dot on a magnifier lens's edge; dragging it changes the zoom.
+    case lensEdge
 
     static var boxCases: [AnnotationResizeHandle] {
         [.topLeft, .topRight, .bottomLeft, .bottomRight]
@@ -38,7 +42,7 @@ enum AnnotationResizeHandle: CaseIterable {
             CGPoint(x: rect.minX, y: rect.maxY)
         case .bottomRight:
             CGPoint(x: rect.maxX, y: rect.maxY)
-        case .start, .control, .end, .pointer:
+        case .start, .control, .end, .pointer, .lens, .lensEdge:
             nil
         }
     }
@@ -53,7 +57,7 @@ enum AnnotationResizeHandle: CaseIterable {
             CGPoint(x: rect.maxX, y: rect.minY)
         case .bottomRight:
             CGPoint(x: rect.minX, y: rect.minY)
-        case .start, .control, .end, .pointer:
+        case .start, .control, .end, .pointer, .lens, .lensEdge:
             .zero
         }
     }
@@ -68,7 +72,7 @@ enum AnnotationResizeHandle: CaseIterable {
             CGPoint(x: min(point.x, anchor.x - minimumSize), y: max(point.y, anchor.y + minimumSize))
         case .bottomRight:
             CGPoint(x: max(point.x, anchor.x + minimumSize), y: max(point.y, anchor.y + minimumSize))
-        case .start, .control, .end, .pointer:
+        case .start, .control, .end, .pointer, .lens, .lensEdge:
             point
         }
     }
@@ -81,7 +85,7 @@ enum AnnotationResizeHandle: CaseIterable {
             item.arrowCurveHandle
         case .end:
             item.points.last
-        case .topLeft, .topRight, .bottomLeft, .bottomRight, .pointer:
+        case .topLeft, .topRight, .bottomLeft, .bottomRight, .pointer, .lens, .lensEdge:
             nil
         }
     }
@@ -142,13 +146,25 @@ enum AnnotationTextMetrics {
 
 enum AnnotationNumberedCircleMetrics {
     static let normalizedDiameter: CGFloat = 0.039
+    /// Badge size slider: level 6 is the default size; the diameter scales linearly.
+    static let sizeLevelRange: ClosedRange<CGFloat> = 2...20
+    static let defaultSizeLevel: CGFloat = 6
+
+    static func diameter(forLevel level: CGFloat) -> CGFloat {
+        normalizedDiameter * level / defaultSizeLevel
+    }
+
+    static func level(forDiameter diameter: CGFloat) -> CGFloat {
+        (diameter / normalizedDiameter * defaultSizeLevel).rounded()
+    }
 
     static func defaultRect(
         centeredAt point: CGPoint,
         imageSize: CGSize,
-        within allowedBounds: CGRect
+        within allowedBounds: CGRect,
+        diameter: CGFloat = normalizedDiameter
     ) -> CGRect {
-        let height = normalizedDiameter
+        let height = diameter
         let width = imageSize.width > 0
             ? height * max(imageSize.height, 1) / imageSize.width
             : height
@@ -279,29 +295,6 @@ enum AnnotationBadgeStyle: String, CaseIterable, Identifiable {
     }
 }
 
-enum AnnotationMagnifierMetrics {
-    static let magnifications: [CGFloat] = [1.5, 2, 3, 4]
-    static let defaultMagnification: CGFloat = 2
-
-    static func title(for magnification: CGFloat) -> String {
-        magnification.rounded() == magnification
-            ? "\(Int(magnification))×"
-            : String(format: "%.1f×", magnification)
-    }
-
-    /// Where the magnified image goes so that the circle's centre stays put:
-    /// `imageRect` scaled by `magnification` around the centre of `circle`.
-    static func zoomedImageRect(_ imageRect: CGRect, circle: CGRect, magnification: CGFloat) -> CGRect {
-        let center = CGPoint(x: circle.midX, y: circle.midY)
-        return CGRect(
-            x: center.x + (imageRect.minX - center.x) * magnification,
-            y: center.y + (imageRect.minY - center.y) * magnification,
-            width: imageRect.width * magnification,
-            height: imageRect.height * magnification
-        )
-    }
-}
-
 enum AnnotationFilledRectangleMetrics {
     static func cornerRadius(for rect: CGRect) -> CGFloat {
         min(12, max(3, min(rect.width, rect.height) * 0.08))
@@ -309,6 +302,15 @@ enum AnnotationFilledRectangleMetrics {
 }
 
 enum AnnotationMeasureMetrics {
+    /// Line width of rulers, in view points.
+    static let lineWidth: CGFloat = 1.5
+    /// Label size in the editor, in view points; constant at any zoom.
+    static let viewFontSize: CGFloat = 11
+
+    static func exportFontSize(for imageSize: CGSize) -> CGFloat {
+        min(24, max(11, max(imageSize.width, imageSize.height) / 70))
+    }
+
     static func snappedEnd(from start: CGPoint, to proposedEnd: CGPoint, imageSize: CGSize) -> CGPoint {
         let horizontalPixels = abs(proposedEnd.x - start.x) * max(imageSize.width, 1)
         let verticalPixels = abs(proposedEnd.y - start.y) * max(imageSize.height, 1)
@@ -469,7 +471,7 @@ struct AnnotationArrowGeometry {
 
 
 struct AnnotationItem: Identifiable, Equatable {
-    let id: UUID
+    private(set) var id: UUID
     var tool: AnnotationTool
     var rect: CGRect
     var points: [CGPoint]
@@ -491,6 +493,9 @@ struct AnnotationItem: Identifiable, Equatable {
     var pointerAngle: CGFloat
     /// Zoom factor of magnifier annotations.
     var magnification: CGFloat
+    var ellipseStyle: AnnotationEllipseStyle
+    var arrowStyle: AnnotationArrowStyle
+    var arrowDoubleHeaded: Bool
 
     init(
         id: UUID = UUID(),
@@ -510,7 +515,10 @@ struct AnnotationItem: Identifiable, Equatable {
         shapeStyle: AnnotationShapeStyle = .sharp,
         badgeStyle: AnnotationBadgeStyle = .circle,
         pointerAngle: CGFloat = AnnotationBadgeStyle.defaultPointerAngle,
-        magnification: CGFloat = AnnotationMagnifierMetrics.defaultMagnification
+        magnification: CGFloat = AnnotationMagnifierMetrics.defaultMagnification,
+        ellipseStyle: AnnotationEllipseStyle = .outline,
+        arrowStyle: AnnotationArrowStyle = .line,
+        arrowDoubleHeaded: Bool = false
     ) {
         self.id = id
         self.tool = tool
@@ -530,6 +538,29 @@ struct AnnotationItem: Identifiable, Equatable {
         self.badgeStyle = badgeStyle
         self.pointerAngle = pointerAngle
         self.magnification = magnification
+        self.ellipseStyle = ellipseStyle
+        self.arrowStyle = arrowStyle
+        self.arrowDoubleHeaded = arrowDoubleHeaded
+    }
+
+    /// A copy with a new identity, for duplicating.
+    func duplicated() -> AnnotationItem {
+        var copy = self
+        copy.id = UUID()
+        return copy
+    }
+
+    /// Normalized rect of a magnifier's lens, or nil for other tools.
+    var magnifierLensRect: CGRect? {
+        guard tool == .magnifier else { return nil }
+        let source = rect.standardized
+        let center = points.first ?? CGPoint(x: source.midX, y: source.midY)
+        return AnnotationMagnifierMetrics.lensRect(source: source, center: center, magnification: magnification)
+    }
+
+    /// Normalized position of the zoom handle on the lens's right edge.
+    var magnifierEdgeHandle: CGPoint? {
+        magnifierLensRect.map { CGPoint(x: $0.maxX, y: $0.midY) }
     }
 
     /// Normalized position of a badge's pointer tip, or nil for plain circles.
@@ -673,15 +704,26 @@ struct AnnotationItem: Identifiable, Equatable {
         case .rectangle, .filledRectangle, .pixelate, .blur, .spotlight, .text:
             return bounds.insetBy(dx: -tolerance, dy: -tolerance).contains(point)
 
-        case .ellipse, .numberedCircle, .magnifier:
-            let expandedBounds = bounds.insetBy(dx: -tolerance, dy: -tolerance)
-            guard expandedBounds.width > 0, expandedBounds.height > 0 else { return false }
+        case .ellipse, .numberedCircle:
+            return ellipse(bounds, contains: point, tolerance: tolerance)
 
-            let center = CGPoint(x: expandedBounds.midX, y: expandedBounds.midY)
-            let normalizedX = (point.x - center.x) / (expandedBounds.width / 2)
-            let normalizedY = (point.y - center.y) / (expandedBounds.height / 2)
-            return normalizedX * normalizedX + normalizedY * normalizedY <= 1
+        case .magnifier:
+            return ellipse(bounds, contains: point, tolerance: tolerance)
+                || magnifierLensRect.map { ellipse($0, contains: point, tolerance: tolerance) } == true
         }
+    }
+
+    /// Whether `point` lies inside the lens (not the source circle).
+    func magnifierLensContains(_ point: CGPoint) -> Bool {
+        magnifierLensRect.map { ellipse($0, contains: point, tolerance: 0) } == true
+    }
+
+    private func ellipse(_ rect: CGRect, contains point: CGPoint, tolerance: CGFloat) -> Bool {
+        let expanded = rect.insetBy(dx: -tolerance, dy: -tolerance)
+        guard expanded.width > 0, expanded.height > 0 else { return false }
+        let normalizedX = (point.x - expanded.midX) / (expanded.width / 2)
+        let normalizedY = (point.y - expanded.midY) / (expanded.height / 2)
+        return normalizedX * normalizedX + normalizedY * normalizedY <= 1
     }
 
     func offsetBy(_ delta: CGPoint) -> AnnotationItem {
@@ -711,7 +753,7 @@ struct AnnotationItem: Identifiable, Equatable {
         case .end:
             item.ensureArrowPointStorage()
             item.points[item.points.count - 1] = point
-        case .topLeft, .topRight, .bottomLeft, .bottomRight, .pointer:
+        case .topLeft, .topRight, .bottomLeft, .bottomRight, .pointer, .lens, .lensEdge:
             return self
         }
 
@@ -928,9 +970,9 @@ enum AnnotationTool: String, CaseIterable, Identifiable, Codable {
 
     var usesStrokeStyle: Bool {
         switch self {
-        case .rectangle, .ellipse, .line, .measure, .arrow, .freehand, .magnifier:
+        case .rectangle, .ellipse, .line, .arrow, .freehand, .magnifier:
             true
-        case .select, .filledRectangle, .numberedCircle, .pixelate, .blur, .spotlight, .text:
+        case .select, .filledRectangle, .measure, .numberedCircle, .pixelate, .blur, .spotlight, .text:
             false
         }
     }

@@ -50,7 +50,18 @@ enum AnnotationDrawing {
                     ctx.fillPath()
 
                 case .ellipse:
-                    ctx.strokeEllipse(in: renderedRect(item.bounds, in: imageRect, flipped: flipped))
+                    let path = item.ellipseStyle.path(in: renderedRect(item.bounds, in: imageRect, flipped: flipped))
+                    if let opacity = item.ellipseStyle.fillOpacity {
+                        ctx.saveGState()
+                        ctx.setFillColor(item.swatch.nsColor.withAlphaComponent(item.swatch.alpha * opacity).cgColor)
+                        ctx.addPath(path)
+                        ctx.fillPath()
+                        ctx.restoreGState()
+                    }
+                    if item.ellipseStyle != .filled {
+                        ctx.addPath(path)
+                        ctx.strokePath()
+                    }
 
                 case .numberedCircle:
                     drawNumberedCircle(item, in: renderedRect(item.bounds, in: imageRect, flipped: flipped), context: ctx, flipped: flipped)
@@ -82,10 +93,9 @@ enum AnnotationDrawing {
                     guard let canvasSnapshot else { return }
                     drawMagnifier(
                         item,
-                        in: renderedRect(item.bounds, in: imageRect, flipped: flipped),
+                        imageRect: imageRect,
                         canvasSnapshot: canvasSnapshot,
                         context: ctx,
-                        canvasRect: fullCanvasRect,
                         lineWidth: lineWidth,
                         flipped: flipped
                     )
@@ -137,11 +147,36 @@ enum AnnotationDrawing {
                             end: renderedPoint(last, in: imageRect, flipped: flipped),
                             lineWidth: lineWidth
                           ) else { return }
-                    ctx.beginPath()
-                    ctx.move(to: renderedPoint(first, in: imageRect, flipped: flipped))
-                    ctx.addQuadCurve(to: geometry.tip, control: geometry.shaftControl)
-                    ctx.strokePath()
-                    drawArrowHead(geometry, context: ctx)
+                    let start = renderedPoint(first, in: imageRect, flipped: flipped)
+                    let controlPoint = renderedPoint(control, in: imageRect, flipped: flipped)
+                    if item.arrowStyle == .line {
+                        ctx.beginPath()
+                        ctx.move(to: start)
+                        ctx.addQuadCurve(to: geometry.tip, control: geometry.shaftControl)
+                        ctx.strokePath()
+                        drawArrowHead(geometry, context: ctx)
+                        if item.arrowDoubleHeaded,
+                           let tail = AnnotationArrowGeometry(start: geometry.tip, control: controlPoint, end: start, lineWidth: lineWidth) {
+                            drawArrowHead(tail, context: ctx)
+                        }
+                    } else if let path = AnnotationArrowShape.path(
+                        start: start,
+                        control: controlPoint,
+                        end: geometry.tip,
+                        lineWidth: lineWidth,
+                        doubleHeaded: item.arrowDoubleHeaded,
+                        widthScale: item.arrowStyle == .outline ? 1.5 : 1
+                    ) {
+                        ctx.addPath(path)
+                        if item.arrowStyle == .filled {
+                            ctx.fillPath()
+                        } else {
+                            ctx.saveGState()
+                            ctx.setLineWidth(max(1.5, lineWidth * 0.45))
+                            ctx.strokePath()
+                            ctx.restoreGState()
+                        }
+                    }
                 }
             }
         }
@@ -207,7 +242,8 @@ enum AnnotationDrawing {
             end: normalizedEnd,
             imageSize: imageRect.size
         )
-        let capLength = max(12, lineWidth * 3)
+        let fontSize = AnnotationMeasureMetrics.exportFontSize(for: imageRect.size)
+        let capLength = fontSize * 0.8
 
         context.beginPath()
         context.move(to: start)
@@ -230,14 +266,14 @@ enum AnnotationDrawing {
             end: normalizedEnd,
             imageSize: imageRect.size
         )
-        let fontSize = max(13, min(28, max(imageRect.width, imageRect.height) / 140))
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedDigitSystemFont(ofSize: fontSize, weight: .semibold),
-            .foregroundColor: NSColor.white
+            .foregroundColor: item.swatch.numberedCircleTextNSColor
         ]
         let attributedLabel = NSAttributedString(string: label, attributes: attributes)
         let textSize = attributedLabel.size()
-        let labelSize = CGSize(width: textSize.width + 16, height: textSize.height + 8)
+        let padding = fontSize * 0.4
+        let labelSize = CGSize(width: textSize.width + padding * 2, height: textSize.height + padding * 0.6)
         let center = AnnotationMeasureMetrics.labelCenter(
             start: start,
             end: end,
@@ -255,11 +291,11 @@ enum AnnotationDrawing {
         )
 
         context.saveGState()
-        context.setFillColor(NSColor.black.withAlphaComponent(0.82).cgColor)
+        context.setFillColor(item.swatch.nsColor.cgColor)
         context.addPath(CGPath(
             roundedRect: labelRect,
-            cornerWidth: labelRect.height / 2,
-            cornerHeight: labelRect.height / 2,
+            cornerWidth: fontSize * 0.3,
+            cornerHeight: fontSize * 0.3,
             transform: nil
         ))
         context.fillPath()
@@ -267,7 +303,7 @@ enum AnnotationDrawing {
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: flipped)
         attributedLabel.draw(at: CGPoint(
-            x: labelRect.minX + 8,
+            x: labelRect.minX + padding,
             y: labelRect.minY + (labelRect.height - textSize.height) / 2
         ))
         NSGraphicsContext.restoreGraphicsState()
@@ -486,25 +522,38 @@ enum AnnotationDrawing {
         ciContext.clearCaches()
     }
 
-    /// Draws the canvas under `rect` enlarged around the circle's centre, clipped to
-    /// the circle, then rings it in the annotation color.
+    /// Draws the source circle, a connector, and the lens showing the source
+    /// enlarged around its centre.
     private static func drawMagnifier(
         _ item: AnnotationItem,
-        in rect: CGRect,
+        imageRect: CGRect,
         canvasSnapshot: CGImage,
         context: CGContext,
-        canvasRect: CGRect,
         lineWidth: CGFloat,
         flipped: Bool
     ) {
-        guard rect.width >= 1, rect.height >= 1 else { return }
-        let snapshotRect = CGRect(x: 0, y: 0, width: canvasSnapshot.width, height: canvasSnapshot.height)
-        let zoomedRect = AnnotationMagnifierMetrics.zoomedImageRect(
-            snapshotRect, circle: rect, magnification: item.magnification
-        )
+        guard let lensRect = item.magnifierLensRect else { return }
+        let source = renderedRect(item.bounds, in: imageRect, flipped: flipped)
+        let lens = renderedRect(lensRect, in: imageRect, flipped: flipped)
+        guard source.width >= 1, lens.width >= 1 else { return }
 
         context.saveGState()
-        context.addEllipse(in: rect)
+        context.setStrokeColor(item.swatch.nsColor.cgColor)
+        context.setLineWidth(lineWidth)
+        context.strokeEllipse(in: source)
+        if let (from, to) = AnnotationMagnifierMetrics.connector(source: source, lens: lens) {
+            context.move(to: from)
+            context.addLine(to: to)
+            context.strokePath()
+        }
+        context.restoreGState()
+
+        let snapshotRect = CGRect(x: 0, y: 0, width: canvasSnapshot.width, height: canvasSnapshot.height)
+        let zoomedRect = AnnotationMagnifierMetrics.zoomedImageRect(
+            snapshotRect, source: source, lens: lens, magnification: item.magnification
+        )
+        context.saveGState()
+        context.addEllipse(in: lens)
         context.clip()
         context.interpolationQuality = item.magnification >= 3 ? .none : .high
         if flipped {
@@ -517,7 +566,7 @@ enum AnnotationDrawing {
         context.saveGState()
         context.setStrokeColor(item.swatch.nsColor.cgColor)
         context.setLineWidth(lineWidth)
-        context.strokeEllipse(in: rect.insetBy(dx: lineWidth / 2, dy: lineWidth / 2))
+        context.strokeEllipse(in: lens.insetBy(dx: lineWidth / 2, dy: lineWidth / 2))
         context.restoreGState()
     }
 

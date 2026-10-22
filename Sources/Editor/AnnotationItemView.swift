@@ -58,6 +58,25 @@ struct AnnotationItemView: View {
                     imageFrame: imageFrame,
                     imageSize: originalImageSize
                 )
+            } else if item.tool == .ellipse {
+                let path = itemPath
+                if let opacity = item.ellipseStyle.fillOpacity {
+                    path.fill(item.swatch.color.opacity(Double(opacity)))
+                }
+                if item.ellipseStyle != .filled {
+                    path.stroke(item.swatch.color, style: outlineStrokeStyle)
+                }
+            } else if item.tool == .arrow, item.arrowStyle != .line {
+                if let boldArrowPath {
+                    if item.arrowStyle == .filled {
+                        boldArrowPath.fill(item.swatch.color)
+                    } else {
+                        boldArrowPath.stroke(
+                            item.swatch.color,
+                            style: StrokeStyle(lineWidth: max(1.5, item.strokeWidth * 0.45), lineJoin: .round)
+                        )
+                    }
+                }
             } else if item.tool == .text {
                 AnnotationTextItemView(
                     item: item,
@@ -121,11 +140,11 @@ struct AnnotationItemView: View {
         case .numberedCircle, .magnifier:
             return Path(ellipseIn: rect)
 
+        case .ellipse:
+            return Path(item.ellipseStyle.path(in: rect))
+
         case .text:
             return Path()
-
-        case .ellipse:
-            return Path(ellipseIn: rect)
 
         case .line:
             var path = Path()
@@ -168,6 +187,20 @@ struct AnnotationItemView: View {
                     height: max(viewBounds.height + selectionOutset * 2, 18)
                 )
                 .position(x: viewBounds.midX, y: viewBounds.midY)
+        } else if item.tool == .measure {
+            // Rulers can be recolored or deleted, not resized.
+            SelectionOutlineFrame()
+                .frame(
+                    width: max(viewBounds.width + selectionOutset * 2, 18),
+                    height: max(viewBounds.height + selectionOutset * 2, 18)
+                )
+                .position(x: viewBounds.midX, y: viewBounds.midY)
+        } else if item.tool == .numberedCircle {
+            // Badges are sized with the slider; only the pointer has a handle.
+            if let tip = item.badgePointerTip(imageSize: originalImageSize) {
+                CurveControlHandle()
+                    .position(viewPoint(tip))
+            }
         } else if item.tool.usesEndpoints {
             ForEach(endpointViewPoints.indices, id: \.self) { index in
                 SelectionHandle()
@@ -193,15 +226,16 @@ struct AnnotationItemView: View {
                 )
                 .position(x: viewBounds.midX, y: viewBounds.midY)
 
-            if let tip = item.badgePointerTip(imageSize: originalImageSize) {
-                CurveControlHandle()
-                    .position(viewPoint(tip))
+            if let edge = item.magnifierEdgeHandle {
+                SelectionHandle()
+                    .position(viewPoint(edge))
             }
         }
     }
 
+    /// Open chevron head(s) for line arrows.
     private var arrowHeadPath: Path? {
-        guard let geometry = arrowGeometry else {
+        guard item.arrowStyle == .line, let geometry = arrowGeometry else {
             return nil
         }
 
@@ -209,7 +243,31 @@ struct AnnotationItemView: View {
         path.move(to: geometry.firstWing)
         path.addLine(to: geometry.tip)
         path.addLine(to: geometry.secondWing)
+        if item.arrowDoubleHeaded,
+           let start = endpointViewPoints.first,
+           let control = item.controlPoint.map(viewPoint),
+           let tail = AnnotationArrowGeometry(start: geometry.tip, control: control, end: start, lineWidth: item.strokeWidth) {
+            path.move(to: tail.firstWing)
+            path.addLine(to: tail.tip)
+            path.addLine(to: tail.secondWing)
+        }
         return path
+    }
+
+    /// Closed outline for outlined and bold arrows.
+    private var boldArrowPath: Path? {
+        guard let start = endpointViewPoints.first,
+              let control = item.controlPoint.map(viewPoint),
+              let end = endpointViewPoints.last,
+              let path = AnnotationArrowShape.path(
+                start: start,
+                control: control,
+                end: end,
+                lineWidth: item.strokeWidth,
+                doubleHeaded: item.arrowDoubleHeaded,
+                widthScale: item.arrowStyle == .outline ? 1.5 : 1
+              ) else { return nil }
+        return Path(path)
     }
 
     private var arrowGeometry: AnnotationArrowGeometry? {
@@ -300,7 +358,7 @@ private struct MeasureAnnotationView: View {
                 end: normalizedEnd,
                 imageSize: imageSize
             )
-            let capLength = max(12, item.strokeWidth * 3)
+            let capLength: CGFloat = 8
             let label = AnnotationMeasureMetrics.label(
                 start: normalizedStart,
                 end: normalizedEnd,
@@ -327,16 +385,16 @@ private struct MeasureAnnotationView: View {
                 }
                 .stroke(
                     item.swatch.color,
-                    style: StrokeStyle(lineWidth: item.strokeWidth, lineCap: .round, lineJoin: .round)
+                    style: StrokeStyle(lineWidth: AnnotationMeasureMetrics.lineWidth, lineCap: .butt)
                 )
 
                 Text(label)
-                .font(.system(size: labelFontSize, weight: .semibold, design: .rounded))
+                .font(.system(size: labelFontSize, weight: .semibold))
                 .monospacedDigit()
-                .foregroundStyle(.white)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(.black.opacity(0.82), in: Capsule())
+                .foregroundStyle(item.swatch.numberedCircleTextColor)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 1.5)
+                .background(item.swatch.color, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
                 .fixedSize()
                 .position(AnnotationMeasureMetrics.labelCenter(
                     start: start,
@@ -352,7 +410,7 @@ private struct MeasureAnnotationView: View {
     }
 
     private var labelFontSize: CGFloat {
-        max(11, min(16, item.strokeWidth * 2.2 + 5))
+        AnnotationMeasureMetrics.viewFontSize
     }
 
     private func viewPoint(_ point: CGPoint) -> CGPoint {
@@ -365,7 +423,7 @@ private struct MeasureAnnotationView: View {
     private func renderedLabelSize(_ label: String) -> CGSize {
         let font = NSFont.monospacedDigitSystemFont(ofSize: labelFontSize, weight: .semibold)
         let textSize = NSAttributedString(string: label, attributes: [.font: font]).size()
-        return CGSize(width: textSize.width + 16, height: textSize.height + 8)
+        return CGSize(width: textSize.width + 8, height: textSize.height + 3)
     }
 }
 
@@ -788,7 +846,7 @@ private enum AnnotationSelectionStyle {
     static let color = Color.accentColor.opacity(0.5)
 }
 
-/// Live magnifier: the screenshot enlarged around the circle's centre, with a ring.
+/// Live magnifier: source circle, connector, and the lens showing the source enlarged.
 private struct MagnifierPreview: View {
     let item: AnnotationItem
     let image: NSImage
@@ -799,21 +857,41 @@ private struct MagnifierPreview: View {
     var body: some View {
         let lineWidth = item.strokeWidth
         Canvas { context, _ in
-            let circle = CGRect(origin: .zero, size: viewBounds.size)
-            let localImage = imageFrame.offsetBy(dx: -viewBounds.minX, dy: -viewBounds.minY)
-            context.clip(to: Path(ellipseIn: circle))
-            context.draw(
+            guard let lensRect = item.magnifierLensRect else { return }
+            let origin = canvasFrame.origin
+            let source = viewBounds.offsetBy(dx: -origin.x, dy: -origin.y)
+            let lens = CGRect(
+                x: imageFrame.minX + lensRect.minX * imageFrame.width - origin.x,
+                y: imageFrame.minY + lensRect.minY * imageFrame.height - origin.y,
+                width: lensRect.width * imageFrame.width,
+                height: lensRect.height * imageFrame.height
+            )
+            let localImage = imageFrame.offsetBy(dx: -origin.x, dy: -origin.y)
+            let style = StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+
+            var outline = Path(ellipseIn: source)
+            if let (from, to) = AnnotationMagnifierMetrics.connector(source: source, lens: lens) {
+                outline.move(to: from)
+                outline.addLine(to: to)
+            }
+            context.stroke(outline, with: .color(item.swatch.color), style: style)
+
+            var lensContext = context
+            lensContext.clip(to: Path(ellipseIn: lens))
+            lensContext.draw(
                 Image(nsImage: image).interpolation(item.magnification >= 3 ? .none : .high),
-                in: AnnotationMagnifierMetrics.zoomedImageRect(localImage, circle: circle, magnification: item.magnification)
+                in: AnnotationMagnifierMetrics.zoomedImageRect(
+                    localImage, source: source, lens: lens, magnification: item.magnification
+                )
             )
             context.stroke(
-                Path(ellipseIn: circle.insetBy(dx: lineWidth / 2, dy: lineWidth / 2)),
+                Path(ellipseIn: lens.insetBy(dx: lineWidth / 2, dy: lineWidth / 2)),
                 with: .color(item.swatch.color),
-                lineWidth: lineWidth
+                style: style
             )
         }
-        .frame(width: max(viewBounds.width, 1), height: max(viewBounds.height, 1))
-        .position(x: viewBounds.midX, y: viewBounds.midY)
+        .frame(width: canvasFrame.width, height: canvasFrame.height)
+        .position(x: canvasFrame.midX, y: canvasFrame.midY)
         .allowsHitTesting(false)
     }
 }

@@ -790,8 +790,28 @@ private struct EditorFloatingOptionsBar: View {
             )
         }
 
-        if model.showsMagnificationControl {
-            MagnificationPicker(value: model.inspectedMagnification) { model.setMagnification($0) }
+        if model.showsBadgeSizeControl {
+            StrokeWidthSlider(
+                value: model.inspectedBadgeSizeLevel,
+                range: AnnotationNumberedCircleMetrics.sizeLevelRange,
+                title: "Size",
+                onBegin: { model.beginBadgeSizeChange() },
+                onChange: { model.setBadgeSizeLevel($0) }
+            )
+            .padding(.horizontal, 4)
+        }
+
+        if model.showsEllipseStyleControl {
+            EllipseStylePicker(style: model.inspectedEllipseStyle) { model.setEllipseStyle($0) }
+        }
+
+        if model.showsArrowStyleControl {
+            ArrowStylePicker(
+                style: model.inspectedArrowStyle,
+                isDoubleHeaded: model.inspectedArrowDoubleHeaded,
+                onSelect: { model.setArrowStyle($0) },
+                onToggleDoubleHeaded: { model.toggleArrowDoubleHeaded() }
+            )
         }
 
         if model.showsBadgeStyleControl {

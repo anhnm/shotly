@@ -38,10 +38,12 @@ bấm ra ngoài; chụp nhiều ảnh liên tiếp thì ghép được thành co
 - Màu dưới con trỏ hiện trên thanh công cụ: `Tab` copy mã màu, `⇧Tab` copy màu chữ gần đó.
 - Đổi kích thước ảnh, crop, ghim ảnh lên màn hình.
 - Chú thích: khung (bo góc / vuông / nét đứt / đặc), hình tròn, đường thẳng, mũi tên cong, vẽ tay,
-  chữ, blur/mosaic, spotlight, kính lúp (phóng 1.5–4×). Mỗi công cụ một phím: `V T M R D A B G X N O L`.
-- Số thứ tự dạng tròn hoặc có đuôi trỏ (giọt nước, bong bóng), kéo đầu trỏ để xoay hướng.
-- Thước đo thông minh: rê chuột là tự bắt cạnh và hiện kích thước vùng dưới con trỏ, bấm để giữ lại,
-  phím mũi tên để chỉ đo ngang hoặc dọc; vẫn kéo tay để đo tự do được.
+  chữ, blur/mosaic, spotlight, kính lúp (vòng nguồn và vòng xem kéo riêng, kéo mép để đổi độ phóng).
+  Mỗi công cụ một phím: `V T M R D A B G X N O L`. Oval có kiểu vẽ tay, viền, tô mờ, tô đặc;
+  mũi tên có kiểu rỗng, đậm, nét mảnh và hai đầu.
+- Số thứ tự dạng tròn hoặc có đuôi trỏ (giọt nước, bong bóng), kéo đầu trỏ để xoay hướng, chỉnh cỡ bằng thanh trượt.
+- Thước đo thông minh: giữ `1`/`←→` đo ngang, `2`/`↑↓` đo dọc, tự bắt cạnh vùng dưới con trỏ;
+  bấm chuột để in thước lên ảnh. Công cụ thước (`M`) hiện cả hai chiều khi rê chuột.
 - Backdrop: nền màu, gradient hoặc ảnh riêng; padding, bo góc, bóng đổ; watermark và metadata.
 
 ### Khác

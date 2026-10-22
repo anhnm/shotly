@@ -1,6 +1,7 @@
 import AppKit
 
-/// Which spans the smart ruler shows while hovering.
+/// Which spans the smart ruler shows: the measure tool shows both; holding
+/// 1 / ← → or 2 / ↑ ↓ shows one direction, with any tool.
 enum SmartRulerAxis {
     case both
     case horizontal
@@ -79,20 +80,20 @@ final class SmartRulerPixelBuffer {
 extension EditorModel {
     /// Measure annotations for the spans under the cursor, shown before clicking.
     var smartRulerItems: [AnnotationItem] {
-        guard selectedTool == .measure, interaction == nil,
+        guard let axis = activeSmartRulerAxis, interaction == nil,
               let spans = smartRulerSpans, let buffer = smartRulerBuffer else { return [] }
         let width = CGFloat(buffer.width)
         let height = CGFloat(buffer.height)
         var result: [AnnotationItem] = []
 
-        if smartRulerAxis.showsHorizontal, spans.right > spans.left {
+        if axis.showsHorizontal, spans.right > spans.left {
             let y = (CGFloat(spans.y) + 0.5) / height
             result.append(smartRulerItem(
                 from: CGPoint(x: CGFloat(spans.left) / width, y: y),
                 to: CGPoint(x: CGFloat(spans.right + 1) / width, y: y)
             ))
         }
-        if smartRulerAxis.showsVertical, spans.bottom > spans.top {
+        if axis.showsVertical, spans.bottom > spans.top {
             let x = (CGFloat(spans.x) + 0.5) / width
             result.append(smartRulerItem(
                 from: CGPoint(x: x, y: CGFloat(spans.top) / height),
@@ -102,9 +103,14 @@ extension EditorModel {
         return result
     }
 
-    /// Recomputes the spans for the hovered pixel. Only runs with the measure tool.
+    /// The held key's direction, or both with the measure tool; nil when the ruler is off.
+    var activeSmartRulerAxis: SmartRulerAxis? {
+        heldRulerAxis ?? (selectedTool == .measure && editingTextItemID == nil ? .both : nil)
+    }
+
+    /// Recomputes the spans for the hovered pixel while the ruler is active.
     func updateSmartRuler(pixelX: Int, pixelY: Int, image: CGImage) {
-        guard selectedTool == .measure, collageState == nil else {
+        guard activeSmartRulerAxis != nil, collageState == nil else {
             clearSmartRuler()
             return
         }
@@ -127,10 +133,15 @@ extension EditorModel {
         clearSmartRuler()
     }
 
-    /// Arrow keys pick a direction; pressing the same direction again shows both.
-    func toggleSmartRulerAxis(_ axis: SmartRulerAxis) -> Bool {
-        guard selectedTool == .measure, selectedItemIDs.isEmpty else { return false }
-        smartRulerAxis = smartRulerAxis == axis ? .both : axis
+    /// Key down (an axis) or key up (nil) for the ruler keys.
+    func setHeldRulerAxis(_ axis: SmartRulerAxis?) -> Bool {
+        guard collageState == nil, !isCropping else { return false }
+        if heldRulerAxis != axis { heldRulerAxis = axis }
+        if axis != nil, let pixel = hoveredPixel, let image = sourceImage {
+            updateSmartRuler(pixelX: pixel.x, pixelY: pixel.y, image: image)
+        } else if activeSmartRulerAxis == nil {
+            releaseSmartRulerBuffer()
+        }
         return true
     }
 

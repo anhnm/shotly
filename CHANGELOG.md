@@ -5,6 +5,20 @@ All notable changes to Shotly are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2] - 2026-10-22
+
+### Added
+
+- **Ellipse styles**: hand-drawn, outline, highlight (translucent fill) and filled
+- **Arrow styles**: outlined, bold and line arrows, with an option for a head at both ends
+- **Hold-to-measure**: hold `1` or `←`/`→` for horizontal, `2` or `↑`/`↓` for vertical, with any tool; click to stamp the ruler
+
+### Changed
+
+- The magnifier has a small source circle and a separate lens: drag each on its own, drag the dot on the lens edge to change the zoom
+- Numbered badges are sized with a slider instead of a resize frame
+- Rulers are thinner with a compact label in the ruler's color; stamped rulers can be recolored but not resized
+
 ## [2.1] - 2026-10-22
 
 ### Added

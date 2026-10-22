@@ -13,6 +13,7 @@
 		1800499FFE667C9A82C53A01 /* EditorInspectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1061BB4A840DDF45A009D53 /* EditorInspectorView.swift */; };
 		1A05BBBBF0880944F48F9B82 /* ToastWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB68F204A779DD8BF3A4A6E7 /* ToastWindow.swift */; };
 		297BBB66C9D72E73E68B94C2 /* RecordingStatusBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58E4EBBBBCA3BC0269C831B8 /* RecordingStatusBar.swift */; };
+		2ADF19259062C8BCB5DF2D9B /* AnnotationShapes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EC489EA82D82B841D7268AC /* AnnotationShapes.swift */; };
 		2CD3EF433581955D6D6A0DCF /* EditorWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCA394DD75830BCC4D344F96 /* EditorWindowController.swift */; };
 		30F830243A9B51C12CB45664 /* VideoEditorWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FDA9FE3816D2F79E304F764 /* VideoEditorWindowController.swift */; };
 		34220B1E06167AA8E0E05ACE /* MenuBarPopoverController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CB458124274CB246EF04267 /* MenuBarPopoverController.swift */; };
@@ -94,6 +95,7 @@
 		6851DF30C49F8CD9B66E9143 /* EditorModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorModel.swift; sourceTree = "<group>"; };
 		6A34A82F8B6482AE06CBE613 /* AnnotationRedactionImageProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationRedactionImageProcessor.swift; sourceTree = "<group>"; };
 		6DDD3CC29C43A354BCD28C13 /* VideoEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoEditorView.swift; sourceTree = "<group>"; };
+		6EC489EA82D82B841D7268AC /* AnnotationShapes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationShapes.swift; sourceTree = "<group>"; };
 		75803CB35255569A2FD6407E /* AppPaths.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPaths.swift; sourceTree = "<group>"; };
 		759B689995F698DD5FD3FBF5 /* PreviewOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewOverlay.swift; sourceTree = "<group>"; };
 		76A3EFFACE27FF29BF5DD438 /* AppPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPreferences.swift; sourceTree = "<group>"; };
@@ -176,6 +178,7 @@
 			isa = PBXGroup;
 			children = (
 				B803F0FF4634BE432A988CBE /* AnnotationItem.swift */,
+				6EC489EA82D82B841D7268AC /* AnnotationShapes.swift */,
 				75803CB35255569A2FD6407E /* AppPaths.swift */,
 				76A3EFFACE27FF29BF5DD438 /* AppPreferences.swift */,
 				DEBD41D4035729B9908CB7D6 /* BackgroundStyle.swift */,
@@ -378,6 +381,7 @@
 				C6F0E0688C86C9CDD664AA49 /* AnnotationItemView.swift in Sources */,
 				B7F866A9D820FEC7DAA3A21A /* AnnotationKeyboard.swift in Sources */,
 				F30D2370B4BDF60035A7D946 /* AnnotationRedactionImageProcessor.swift in Sources */,
+				2ADF19259062C8BCB5DF2D9B /* AnnotationShapes.swift in Sources */,
 				962D2AEF5122CC61831E8EDF /* AppPaths.swift in Sources */,
 				EDCEC4804F33D84DBDDD0FDB /* AppPreferences.swift in Sources */,
 				37B49A82B0F2D954CA900C5F /* AppUpdater.swift in Sources */,

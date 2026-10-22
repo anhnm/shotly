@@ -71,9 +71,10 @@ enum EditorViewportCommand {
     case zoomOutAtCursor
     case copyColor
     case copyTextColor
-    /// Arrow keys with the measure tool: horizontal (←→) or vertical (↑↓) spans.
+    /// Held ruler keys: 1 or ←→ measure horizontally, 2 or ↑↓ vertically.
     case rulerHorizontal
     case rulerVertical
+    case rulerReleased
 }
 
 final class AnnotationKeyCommandHandlerView: NSView {
@@ -141,6 +142,10 @@ final class AnnotationKeyCommandHandlerView: NSView {
             if event.type == .keyUp {
                 if event.keyCode == Self.spaceKeyCode, self.isSpaceDown {
                     self.setSpaceDown(false)
+                    return nil
+                }
+                if Self.rulerAxisCommand(for: event) != nil,
+                   self.onViewportCommand?(.rulerReleased) == true {
                     return nil
                 }
                 return event
@@ -222,12 +227,8 @@ final class AnnotationKeyCommandHandlerView: NSView {
             }
         }
 
-        if flags.isEmpty {
-            switch event.keyCode {
-            case 123, 124: return .rulerHorizontal
-            case 125, 126: return .rulerVertical
-            default: break
-            }
+        if let command = rulerAxisCommand(for: event) {
+            return command
         }
 
         if character == "z" {
@@ -236,6 +237,15 @@ final class AnnotationKeyCommandHandlerView: NSView {
         }
 
         return nil
+    }
+
+    private static func rulerAxisCommand(for event: NSEvent) -> EditorViewportCommand? {
+        guard event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty else { return nil }
+        switch event.keyCode {
+        case 18, 83, 123, 124: return .rulerHorizontal // 1, keypad 1, ← →
+        case 19, 84, 125, 126: return .rulerVertical // 2, keypad 2, ↓ ↑
+        default: return nil
+        }
     }
 
     private static func isPlainDelete(_ event: NSEvent) -> Bool {

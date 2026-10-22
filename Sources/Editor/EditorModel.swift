@@ -50,8 +50,14 @@ final class EditorModel {
     var badgeStyle: AnnotationBadgeStyle = .circle
     var pointerAngle: CGFloat = AnnotationBadgeStyle.defaultPointerAngle
     var magnification: CGFloat = AnnotationMagnifierMetrics.defaultMagnification
+    var badgeSizeLevel: CGFloat = AnnotationNumberedCircleMetrics.defaultSizeLevel
+    var ellipseStyle: AnnotationEllipseStyle = .outline
+    var arrowStyle: AnnotationArrowStyle = .line
+    var arrowDoubleHeaded = false
+    /// Where in the lens the pointer grabbed it, so dragging keeps that spot under the cursor.
+    @ObservationIgnored var lensGrabOffset: CGPoint = .zero
     var smartRulerSpans: SmartRulerSpans?
-    var smartRulerAxis: SmartRulerAxis = .both
+    var heldRulerAxis: SmartRulerAxis?
     @ObservationIgnored var smartRulerBuffer: SmartRulerPixelBuffer?
     var redactionDensity: CGFloat = 0.55
 
@@ -457,6 +463,9 @@ final class EditorModel {
             return
         }
 
+        // Clicking while holding a ruler key stamps the measurement instead.
+        if heldRulerAxis != nil, imprintSmartRuler() { return }
+
         if selectedTool == .select {
             if beginSelectionInteraction(at: point, in: imageFrame, preservingSelectedTool: true, extendingSelection: isExtendingSelection) { return }
             beginMarqueeSelection(at: point, extendingSelection: isExtendingSelection)
@@ -488,7 +497,11 @@ final class EditorModel {
             updateDraftItem(from: startPoint, to: point, within: allowedBounds, lockAspectRatio: isAspectRatioLocked)
         case .moving(let id, let startPoint, let originalItem):
             let delta = CGPoint(x: point.x - startPoint.x, y: point.y - startPoint.y)
-            updateItem(id: id, item: originalItem.offsetBy(clampedDelta(delta, for: originalItem.bounds, within: allowedBounds)))
+            let clamped = clampedDelta(delta, for: originalItem.bounds, within: allowedBounds)
+            var moved = originalItem.offsetBy(clamped)
+            // Dragging a magnifier's source circle leaves its lens where it is.
+            if originalItem.tool == .magnifier { moved.points = originalItem.points }
+            updateItem(id: id, item: moved)
         case .movingSelection(let ids, let startPoint, let originalItems):
             let delta = CGPoint(x: point.x - startPoint.x, y: point.y - startPoint.y)
             let cd = clampedDelta(delta, for: groupBounds(for: originalItems), within: allowedBounds)
@@ -560,7 +573,7 @@ final class EditorModel {
     func selectTool(_ tool: AnnotationTool) {
         guard collageState == nil else { return }
         selectedTool = tool
-        if tool != .measure { releaseSmartRulerBuffer() }
+        if tool != .measure, heldRulerAxis == nil { releaseSmartRulerBuffer() }
         AnalyticsService.track(.editorToolUsed, properties: ["tool": tool.rawValue])
         editingTextItemID = nil
         isTextPlacementArmed = tool == .text
@@ -646,22 +659,75 @@ final class EditorModel {
         }
     }
 
-    // MARK: - Magnifier
+    // MARK: - Badge Size
 
-    var showsMagnificationControl: Bool {
-        inspectedTool == .magnifier
+    var showsBadgeSizeControl: Bool {
+        inspectedTool == .numberedCircle
     }
 
-    var inspectedMagnification: CGFloat {
-        selectedItem?.magnification ?? selectedItems.first?.magnification ?? magnification
+    var inspectedBadgeSizeLevel: CGFloat {
+        guard let badge = selectedItems.first(where: { $0.tool == .numberedCircle }) else { return badgeSizeLevel }
+        return AnnotationNumberedCircleMetrics.level(forDiameter: badge.rect.height)
     }
 
-    func setMagnification(_ value: CGFloat) {
-        magnification = value
-        guard selectedItems.contains(where: { $0.tool == .magnifier }) else { return }
+    func beginBadgeSizeChange() {
+        if selectedItems.contains(where: { $0.tool == .numberedCircle }) { history.push(items) }
+    }
+
+    /// Resizes selected badges around their centres. Undo is registered by `beginBadgeSizeChange`.
+    func setBadgeSizeLevel(_ level: CGFloat) {
+        badgeSizeLevel = level
+        let diameter = AnnotationNumberedCircleMetrics.diameter(forLevel: level)
+        let bounds = CGRect(x: -1, y: -1, width: 3, height: 3)
+        updateSelectedItems { item in
+            guard item.tool == .numberedCircle else { return }
+            item.rect = AnnotationNumberedCircleMetrics.defaultRect(
+                centeredAt: CGPoint(x: item.rect.midX, y: item.rect.midY),
+                imageSize: imageSize,
+                within: bounds,
+                diameter: diameter
+            )
+        }
+    }
+
+    // MARK: - Ellipse and Arrow Styles
+
+    var showsEllipseStyleControl: Bool { inspectedTool == .ellipse }
+    var showsArrowStyleControl: Bool { inspectedTool == .arrow }
+
+    var inspectedEllipseStyle: AnnotationEllipseStyle {
+        selectedItems.first(where: { $0.tool == .ellipse })?.ellipseStyle ?? ellipseStyle
+    }
+
+    var inspectedArrowStyle: AnnotationArrowStyle {
+        selectedItems.first(where: { $0.tool == .arrow })?.arrowStyle ?? arrowStyle
+    }
+
+    var inspectedArrowDoubleHeaded: Bool {
+        selectedItems.first(where: { $0.tool == .arrow })?.arrowDoubleHeaded ?? arrowDoubleHeaded
+    }
+
+    func setEllipseStyle(_ style: AnnotationEllipseStyle) {
+        ellipseStyle = style
+        updateSelected(tool: .ellipse) { $0.ellipseStyle = style }
+    }
+
+    func setArrowStyle(_ style: AnnotationArrowStyle) {
+        arrowStyle = style
+        updateSelected(tool: .arrow) { $0.arrowStyle = style }
+    }
+
+    func toggleArrowDoubleHeaded() {
+        let value = !inspectedArrowDoubleHeaded
+        arrowDoubleHeaded = value
+        updateSelected(tool: .arrow) { $0.arrowDoubleHeaded = value }
+    }
+
+    private func updateSelected(tool: AnnotationTool, _ change: (inout AnnotationItem) -> Void) {
+        guard selectedItems.contains(where: { $0.tool == tool }) else { return }
         history.push(items)
         updateSelectedItems { item in
-            if item.tool == .magnifier { item.magnification = value }
+            if item.tool == tool { change(&item) }
         }
     }
 
@@ -1091,17 +1157,7 @@ final class EditorModel {
             interaction = .resizing(id: item.id, handle: resizeHandle, originalItem: item)
             statePath = AnnotationToolState.resizing.path(for: selectedTool)
         } else if isOptionPressed {
-            let duplicate = AnnotationItem(
-                tool: item.tool, rect: item.rect, points: item.points,
-                swatch: item.swatch, strokeWidth: item.strokeWidth,
-                redactionDensity: item.redactionDensity, text: item.text,
-                textLineHeight: item.textLineHeight, fontName: item.fontName,
-                isBold: item.isBold, isItalic: item.isItalic,
-                isUnderline: item.isUnderline, textAlignment: item.textAlignment,
-                shapeStyle: item.shapeStyle,
-                badgeStyle: item.badgeStyle, pointerAngle: item.pointerAngle,
-                magnification: item.magnification
-            )
+            let duplicate = item.duplicated()
             items.append(duplicate)
             selectedItemID = duplicate.id
             interaction = .moving(id: duplicate.id, startPoint: point, originalItem: duplicate)
@@ -1141,7 +1197,11 @@ final class EditorModel {
         switch selectedTool {
         case .select: return
         case .text: itemRect = defaultTextRect(at: point, lineHeight: textLineHeight, within: allowedBounds)
-        case .numberedCircle: itemRect = AnnotationNumberedCircleMetrics.defaultRect(centeredAt: point, imageSize: imageSize, within: allowedBounds)
+        case .numberedCircle:
+            itemRect = AnnotationNumberedCircleMetrics.defaultRect(
+                centeredAt: point, imageSize: imageSize, within: allowedBounds,
+                diameter: AnnotationNumberedCircleMetrics.diameter(forLevel: badgeSizeLevel)
+            )
         case .rectangle, .filledRectangle, .ellipse, .line, .measure, .arrow, .freehand, .magnifier, .pixelate, .blur, .spotlight:
             itemRect = CGRect(origin: point, size: .zero)
         }
@@ -1149,11 +1209,14 @@ final class EditorModel {
 
         draftItem = AnnotationItem(
             tool: selectedTool, rect: itemRect, points: initialPoints(for: selectedTool, at: point),
-            swatch: selectedSwatch, strokeWidth: strokeWidth, redactionDensity: redactionDensity,
+            swatch: selectedSwatch,
+            strokeWidth: selectedTool == .measure ? AnnotationMeasureMetrics.lineWidth : strokeWidth,
+            redactionDensity: redactionDensity,
             text: itemText, textLineHeight: textLineHeight, fontName: textFontName,
             isBold: textIsBold, isItalic: textIsItalic, isUnderline: textIsUnderline, textAlignment: textAlignment,
             shapeStyle: shapeStyle, badgeStyle: badgeStyle, pointerAngle: pointerAngle,
-            magnification: magnification
+            magnification: magnification, ellipseStyle: ellipseStyle,
+            arrowStyle: arrowStyle, arrowDoubleHeaded: arrowDoubleHeaded
         )
         interaction = .drawing(startPoint: point)
         statePath = AnnotationToolState.drawing.path(for: selectedTool)
@@ -1177,7 +1240,10 @@ final class EditorModel {
             draftItem.points = freehandPoints(adding: point, to: draftItem.points)
             draftItem.rect = boundingRect(for: draftItem.points)
         case .numberedCircle:
-            draftItem.rect = AnnotationNumberedCircleMetrics.defaultRect(centeredAt: startPoint, imageSize: imageSize, within: allowedBounds)
+            draftItem.rect = AnnotationNumberedCircleMetrics.defaultRect(
+                centeredAt: startPoint, imageSize: imageSize, within: allowedBounds,
+                diameter: AnnotationNumberedCircleMetrics.diameter(forLevel: badgeSizeLevel)
+            )
         case .rectangle, .filledRectangle, .ellipse, .pixelate, .blur, .spotlight:
             let aspectRatio = selectedTool.supportsAspectLock && lockAspectRatio ? squareAspectRatio : nil
             draftItem.rect = rect(from: startPoint, to: point, aspectRatio: aspectRatio)
@@ -1192,6 +1258,12 @@ final class EditorModel {
                 width: radius * 2 / max(imageSize.width, 1),
                 height: radius * 2 / max(imageSize.height, 1)
             )
+            draftItem.points = [AnnotationMagnifierMetrics.defaultLensCenter(
+                source: draftItem.rect,
+                magnification: draftItem.magnification,
+                imageSize: imageSize,
+                within: allowedBounds
+            )]
         case .text:
             draftItem.rect = defaultTextRect(at: startPoint, lineHeight: draftItem.textLineHeight, within: allowedBounds)
         }
@@ -1235,6 +1307,18 @@ final class EditorModel {
            abs(point.x - tip.x) <= xTolerance, abs(point.y - tip.y) <= yTolerance {
             return .pointer
         }
+        // Rulers and badges have no resize handles.
+        if item.tool == .measure || item.tool == .numberedCircle { return nil }
+        if item.tool == .magnifier {
+            if let edge = item.magnifierEdgeHandle,
+               abs(point.x - edge.x) <= xTolerance, abs(point.y - edge.y) <= yTolerance {
+                return .lensEdge
+            }
+            if item.magnifierLensContains(point), let lens = item.magnifierLensRect {
+                lensGrabOffset = CGPoint(x: point.x - lens.midX, y: point.y - lens.midY)
+                return .lens
+            }
+        }
         if item.tool.usesEndpoints {
             let curveXTolerance = 18 / max(imageFrame.width, 1)
             let curveYTolerance = 18 / max(imageFrame.height, 1)
@@ -1256,8 +1340,15 @@ final class EditorModel {
         selectedSwatch = item.swatch
         strokeWidth = item.strokeWidth
         redactionDensity = item.redactionDensity
-        if item.tool == .magnifier {
-            magnification = item.magnification
+        switch item.tool {
+        case .magnifier: magnification = item.magnification
+        case .ellipse: ellipseStyle = item.ellipseStyle
+        case .arrow:
+            arrowStyle = item.arrowStyle
+            arrowDoubleHeaded = item.arrowDoubleHeaded
+        case .numberedCircle:
+            badgeSizeLevel = AnnotationNumberedCircleMetrics.level(forDiameter: item.rect.height)
+        default: break
         }
         if item.tool == .numberedCircle {
             badgeStyle = item.badgeStyle
@@ -1359,7 +1450,7 @@ final class EditorModel {
                         start,
                         AnnotationMeasureMetrics.snappedEnd(from: start, to: point, imageSize: imageSize)
                     ]
-                case .control, .topLeft, .topRight, .bottomLeft, .bottomRight, .pointer:
+                case .control, .topLeft, .topRight, .bottomLeft, .bottomRight, .pointer, .lens, .lensEdge:
                     return originalItem
                 }
                 item.rect = boundingRect(for: item.points)
@@ -1372,6 +1463,9 @@ final class EditorModel {
             pointerAngle = item.pointerAngle
             return item
         }
+        if originalItem.tool == .magnifier {
+            return resizedMagnifier(originalItem, handle: handle, to: point)
+        }
         let originalRect = originalItem.bounds
         let anchor = handle.oppositeCorner(in: originalRect)
         let constrainedPoint = handle.constrainedPoint(point, from: anchor, minimumSize: minimumItemSize)
@@ -1380,6 +1474,35 @@ final class EditorModel {
             : originalItem.tool.supportsAspectLock && lockAspectRatio && originalRect.height > 0
                 ? originalRect.width / originalRect.height : nil
         return originalItem.resized(to: rect(from: anchor, to: constrainedPoint, aspectRatio: aspectRatio))
+    }
+
+    /// Lens drags move the lens, the edge dot sets the zoom, and corner handles
+    /// resize the source while the lens keeps its size.
+    private func resizedMagnifier(_ original: AnnotationItem, handle: AnnotationResizeHandle, to point: CGPoint) -> AnnotationItem {
+        var item = original
+        let range = AnnotationMagnifierMetrics.magnificationRange
+        let w = max(imageSize.width, 1)
+        let h = max(imageSize.height, 1)
+        let sourceRadius = max(original.rect.width * w / 2, 1)
+        switch handle {
+        case .lens:
+            item.points = [CGPoint(x: point.x - lensGrabOffset.x, y: point.y - lensGrabOffset.y)]
+        case .lensEdge:
+            guard let lens = original.magnifierLensRect else { return original }
+            let radius = hypot((point.x - lens.midX) * w, (point.y - lens.midY) * h)
+            item.magnification = min(max(radius / sourceRadius, range.lowerBound), range.upperBound)
+        case .topLeft, .topRight, .bottomLeft, .bottomRight:
+            let anchor = handle.oppositeCorner(in: original.rect.standardized)
+            let constrained = handle.constrainedPoint(point, from: anchor, minimumSize: minimumItemSize)
+            item.rect = rect(from: anchor, to: constrained, aspectRatio: squareAspectRatio)
+            let lensRadius = sourceRadius * original.magnification
+            let newSourceRadius = max(item.rect.width * w / 2, 1)
+            item.magnification = min(max(lensRadius / newSourceRadius, range.lowerBound), range.upperBound)
+        case .start, .control, .end, .pointer:
+            return original
+        }
+        magnification = item.magnification
+        return item
     }
 
     private func arrowItem(_ item: AnnotationItem, draggingCurveHandleTo apex: CGPoint) -> AnnotationItem {

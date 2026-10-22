@@ -40,9 +40,11 @@ extension EditorModel {
         case .copyTextColor:
             return copyHoveredColor(darkestNearby: true)
         case .rulerHorizontal:
-            return toggleSmartRulerAxis(.horizontal)
+            return setHeldRulerAxis(.horizontal)
         case .rulerVertical:
-            return toggleSmartRulerAxis(.vertical)
+            return setHeldRulerAxis(.vertical)
+        case .rulerReleased:
+            return setHeldRulerAxis(nil)
         default:
             break
         }
@@ -55,7 +57,7 @@ extension EditorModel {
         case .zoomToActualSize: zoomToActualSize()
         case .zoomInAtCursor: zoomIn(anchor: hoverAnchor)
         case .zoomOutAtCursor: zoomOut(anchor: hoverAnchor)
-        case .copyColor, .copyTextColor, .rulerHorizontal, .rulerVertical: break
+        case .copyColor, .copyTextColor, .rulerHorizontal, .rulerVertical, .rulerReleased: break
         }
         return true
     }
