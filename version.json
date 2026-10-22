@@ -1,14 +1,13 @@
 {
-  "version": "2.0.1",
-  "build": 35,
+  "version": "2.0.2",
+  "build": 36,
   "minimumOS": "14.0",
-  "dmgUrl": "https://github.com/anhnm/shotly/releases/download/v2.0.1/Shotly-2.0.1.dmg",
-  "sha256": "1302d9d84f578ef7f7137a1c431f737eba31661284a3020f46197467eec1b2a9",
-  "size": 11147119,
+  "dmgUrl": "https://github.com/anhnm/shotly/releases/download/v2.0.2/Shotly-2.0.2.dmg",
+  "sha256": "1725e33f2acaecfac945b5f90e24d35215b84d1e7ebb98ae838315ff88edb79c",
+  "size": 11142390,
   "notes": [
-    "Phím tắt trên menu bar to và rõ hơn",
-    "Thêm nút Check for Updates ngay trong menu",
-    "Hiện phím tắt cho Pick Color và Record"
+    "Phím tắt trên menu gọn gàng, dễ đọc",
+    "Phím tắt hiển thị theo thứ tự chuẩn của macOS (⇧⌘4)"
   ],
   "minBuild": 0
 }
