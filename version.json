@@ -1,15 +1,16 @@
 {
-  "version": "2.1",
-  "build": 37,
+  "version": "2.2",
+  "build": 38,
   "minimumOS": "14.0",
-  "dmgUrl": "https://github.com/anhnm/shotly/releases/download/v2.1/Shotly-2.1.dmg",
-  "sha256": "ef7184302b1d7a4a397a3ceba62ab32864e9f6223e78aa2c6e64ea33e2dfea3b",
-  "size": 2125251,
+  "dmgUrl": "https://github.com/anhnm/shotly/releases/download/v2.2/Shotly-2.2.dmg",
+  "sha256": "373c84d869304f5c33d370f7ab584331eaefc5c0d9dc216803d3cbcf7943a586",
+  "size": 2144271,
   "notes": [
-    "Số thứ tự có đuôi trỏ: chọn kiểu tròn, giọt nước hoặc bong bóng, kéo đầu trỏ để xoay hướng",
-    "Thước đo thông minh: rê chuột là tự bắt cạnh và hiện kích thước, bấm để giữ lại, phím mũi tên để chọn ngang/dọc",
-    "Kính lúp (phím X): phóng to vùng tròn 1.5×, 2×, 3× hoặc 4×",
-    "App nhẹ hơn nhiều: bản tải về còn khoảng 2 MB thay vì 11 MB (bỏ bộ hình nền macOS có sẵn)"
+    "Kính lúp 2 vòng: vòng nguồn và vòng xem kéo riêng, kéo chấm ở mép vòng xem để đổi độ phóng",
+    "Oval có 4 kiểu: vẽ tay, viền, tô mờ, tô đặc",
+    "Mũi tên có kiểu rỗng, đậm, nét mảnh và tuỳ chọn hai đầu",
+    "Thước đo: giữ phím 1/←→ đo ngang, 2/↑↓ đo dọc, bấm chuột để in thước; thước gọn hơn, bấm vào để đổi màu",
+    "Số thứ tự chỉnh cỡ bằng thanh trượt, bỏ khung kéo"
   ],
   "minBuild": 0
 }
