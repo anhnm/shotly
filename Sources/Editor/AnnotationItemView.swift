@@ -187,14 +187,6 @@ struct AnnotationItemView: View {
                     height: max(viewBounds.height + selectionOutset * 2, 18)
                 )
                 .position(x: viewBounds.midX, y: viewBounds.midY)
-        } else if item.tool == .measure {
-            // Rulers can be recolored or deleted, not resized.
-            SelectionOutlineFrame()
-                .frame(
-                    width: max(viewBounds.width + selectionOutset * 2, 18),
-                    height: max(viewBounds.height + selectionOutset * 2, 18)
-                )
-                .position(x: viewBounds.midX, y: viewBounds.midY)
         } else if item.tool == .numberedCircle {
             // Badges are sized with the slider; only the pointer has a handle.
             if let tip = item.badgePointerTip(imageSize: originalImageSize) {

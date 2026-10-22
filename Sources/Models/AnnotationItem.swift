@@ -681,7 +681,9 @@ struct AnnotationItem: Identifiable, Equatable {
                 return false
             }
 
-            return distance(from: point, toSegmentFrom: start, to: end) <= tolerance
+            // Rulers are thin, so give them a wider target.
+            let reach = tool == .measure ? tolerance * 1.8 : tolerance
+            return distance(from: point, toSegmentFrom: start, to: end) <= reach
 
         case .freehand:
             guard points.count >= 2 else { return false }

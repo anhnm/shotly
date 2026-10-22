@@ -1,7 +1,7 @@
 import AppKit
 
-/// Which spans the smart ruler shows: the measure tool shows both; holding
-/// 1 / ← → or 2 / ↑ ↓ shows one direction, with any tool.
+/// Which span the smart ruler shows while a ruler key is held:
+/// 1 / ← → for horizontal, 2 / ↑ ↓ for vertical, with any tool.
 enum SmartRulerAxis {
     case both
     case horizontal
@@ -103,9 +103,10 @@ extension EditorModel {
         return result
     }
 
-    /// The held key's direction, or both with the measure tool; nil when the ruler is off.
+    /// The held key's direction; nil when no ruler key is held. Without a key,
+    /// the measure tool edits existing rulers (select, recolor, drag their ends).
     var activeSmartRulerAxis: SmartRulerAxis? {
-        heldRulerAxis ?? (selectedTool == .measure && editingTextItemID == nil ? .both : nil)
+        editingTextItemID == nil ? heldRulerAxis : nil
     }
 
     /// Recomputes the spans for the hovered pixel while the ruler is active.

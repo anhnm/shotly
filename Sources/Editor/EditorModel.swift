@@ -575,7 +575,7 @@ final class EditorModel {
     func selectTool(_ tool: AnnotationTool) {
         guard collageState == nil else { return }
         selectedTool = tool
-        if tool != .measure, heldRulerAxis == nil { releaseSmartRulerBuffer() }
+        if heldRulerAxis == nil { releaseSmartRulerBuffer() }
         AnalyticsService.track(.editorToolUsed, properties: ["tool": tool.rawValue])
         editingTextItemID = nil
         isTextPlacementArmed = tool == .text
@@ -1320,8 +1320,8 @@ final class EditorModel {
            abs(point.x - tip.x) <= xTolerance, abs(point.y - tip.y) <= yTolerance {
             return .pointer
         }
-        // Rulers and badges have no resize handles.
-        if item.tool == .measure || item.tool == .numberedCircle { return nil }
+        // Badges are sized with the slider, not handles.
+        if item.tool == .numberedCircle { return nil }
         if item.tool == .magnifier {
             if let edge = item.magnifierEdgeHandle,
                abs(point.x - edge.x) <= xTolerance, abs(point.y - edge.y) <= yTolerance {

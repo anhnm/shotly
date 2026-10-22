@@ -43,7 +43,7 @@ bấm ra ngoài; chụp nhiều ảnh liên tiếp thì ghép được thành co
   mũi tên có kiểu rỗng, đậm, nét mảnh và hai đầu.
 - Số thứ tự dạng tròn hoặc có đuôi trỏ (giọt nước, bong bóng), kéo đầu trỏ để xoay hướng, chỉnh cỡ bằng thanh trượt.
 - Thước đo thông minh: giữ `1`/`←→` đo ngang, `2`/`↑↓` đo dọc, tự bắt cạnh vùng dưới con trỏ;
-  bấm chuột để in thước lên ảnh. Công cụ thước (`M`) hiện cả hai chiều khi rê chuột.
+  bấm chuột để in thước lên ảnh. Không giữ phím thì bấm vào thước cũ để đổi màu, kéo hai đầu để chỉnh.
 - Backdrop: nền màu, gradient hoặc ảnh riêng; padding, bo góc, bóng đổ; watermark và metadata.
 
 ### Khác

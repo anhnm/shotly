@@ -773,6 +773,14 @@ private struct EditorFloatingOptionsBar: View {
             }
         }
 
+        if model.inspectedTool == .measure {
+            Text("Hold 1 to measure width, 2 for height, then click")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .padding(.horizontal, 6)
+        }
+
         if model.showsStrokeControl && !model.isInspectedRectangleFilled {
             StrokeWidthSlider(
                 value: model.inspectedStrokeWidth,
