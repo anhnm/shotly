@@ -233,10 +233,11 @@ struct EditorShortcut: Codable, Equatable, Hashable {
 
     var displayString: String {
         var parts: [String] = []
-        if modifiers & UInt32(cmdKey) != 0 { parts.append("⌘") }
-        if modifiers & UInt32(shiftKey) != 0 { parts.append("⇧") }
-        if modifiers & UInt32(optionKey) != 0 { parts.append("⌥") }
+        // macOS order: Control, Option, Shift, Command.
         if modifiers & UInt32(controlKey) != 0 { parts.append("⌃") }
+        if modifiers & UInt32(optionKey) != 0 { parts.append("⌥") }
+        if modifiers & UInt32(shiftKey) != 0 { parts.append("⇧") }
+        if modifiers & UInt32(cmdKey) != 0 { parts.append("⌘") }
         parts.append(Self.keyName(for: keyCode))
         return parts.joined()
     }

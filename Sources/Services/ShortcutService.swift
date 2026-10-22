@@ -28,10 +28,11 @@ final class ShortcutService {
 
         var displayString: String {
             var parts: [String] = []
-            if modifiers & UInt32(cmdKey) != 0 { parts.append("\u{2318}") }
-            if modifiers & UInt32(shiftKey) != 0 { parts.append("\u{21E7}") }
-            if modifiers & UInt32(optionKey) != 0 { parts.append("\u{2325}") }
+            // macOS order: Control, Option, Shift, Command.
             if modifiers & UInt32(controlKey) != 0 { parts.append("\u{2303}") }
+            if modifiers & UInt32(optionKey) != 0 { parts.append("\u{2325}") }
+            if modifiers & UInt32(shiftKey) != 0 { parts.append("\u{21E7}") }
+            if modifiers & UInt32(cmdKey) != 0 { parts.append("\u{2318}") }
             parts.append(Self.keyName(for: keyCode))
             return parts.joined()
         }

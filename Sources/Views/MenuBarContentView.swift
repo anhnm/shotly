@@ -370,7 +370,10 @@ struct TrayGridButton: View {
                 Spacer(minLength: 2)
 
                 if let shortcut {
-                    ShortcutKeycaps(shortcut: shortcut, isHighlighted: isHovered)
+                    Text(shortcut)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .fixedSize()
                 }
             }
             .padding(.horizontal, 8)
@@ -383,45 +386,6 @@ struct TrayGridButton: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
-    }
-}
-
-// MARK: - Shortcut keycaps
-
-/// Shows a shortcut such as "⌘⇧4" as one small key per symbol, readable at a glance.
-struct ShortcutKeycaps: View {
-    let shortcut: String
-    var isHighlighted = false
-
-    var body: some View {
-        HStack(spacing: 2) {
-            ForEach(Array(TrayShortcut.keys(in: shortcut).enumerated()), id: \.offset) { _, key in
-                Text(key)
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.primary.opacity(isHighlighted ? 0.85 : 0.6))
-                    .frame(minWidth: 17, minHeight: 18)
-                    .padding(.horizontal, 2)
-                    .background(
-                        RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            .fill(Color.primary.opacity(isHighlighted ? 0.14 : 0.09))
-                    )
-            }
-        }
-        .accessibilityLabel("Shortcut \(shortcut)")
-    }
-}
-
-enum TrayShortcut {
-    /// "⌘⇧4" → ["⌘", "⇧", "4"]; a trailing key name of several letters stays whole.
-    static func keys(in shortcut: String) -> [String] {
-        let modifiers: Set<Character> = ["⌘", "⇧", "⌥", "⌃"]
-        var keys: [String] = []
-        var rest = ""
-        for character in shortcut {
-            if modifiers.contains(character) { keys.append(String(character)) } else { rest.append(character) }
-        }
-        if !rest.isEmpty { keys.append(rest) }
-        return keys
     }
 }
 
@@ -606,25 +570,15 @@ final class TrayGridMenuButton: NSView {
             tinted.draw(in: chevronRect)
         }
 
-        // Keycaps for the shortcut, drawn to match ShortcutKeycaps, left of the chevron.
+        // The shortcut as plain secondary text, left of the chevron, like TrayGridButton.
         if let shortcut {
-            let keyFont = NSFont.systemFont(ofSize: 11, weight: .semibold)
-            let roundedFont = keyFont.fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: 11) } ?? keyFont
-            let keyAttrs: [NSAttributedString.Key: Any] = [
-                .font: roundedFont,
-                .foregroundColor: NSColor.labelColor.withAlphaComponent(isHovered ? 0.85 : 0.6),
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: NSFont.systemFont(ofSize: 12),
+                .foregroundColor: NSColor.secondaryLabelColor,
             ]
-            let keys = TrayShortcut.keys(in: shortcut)
-            let widths = keys.map { max(17, ($0 as NSString).size(withAttributes: keyAttrs).width) + 4 }
-            var x = bounds.maxX - chevronWidth - 6 - widths.reduce(0, +) - CGFloat(max(0, keys.count - 1)) * 2
-            for (key, width) in zip(keys, widths) {
-                let capRect = NSRect(x: x, y: centerY - 9, width: width, height: 18)
-                NSColor.labelColor.withAlphaComponent(isHovered ? 0.14 : 0.09).setFill()
-                NSBezierPath(roundedRect: capRect, xRadius: 4, yRadius: 4).fill()
-                let size = (key as NSString).size(withAttributes: keyAttrs)
-                (key as NSString).draw(at: NSPoint(x: capRect.midX - size.width / 2, y: capRect.midY - size.height / 2), withAttributes: keyAttrs)
-                x += width + 2
-            }
+            let size = (shortcut as NSString).size(withAttributes: attrs)
+            let point = NSPoint(x: bounds.maxX - chevronWidth - 6 - size.width, y: centerY - size.height / 2)
+            (shortcut as NSString).draw(at: point, withAttributes: attrs)
         }
     }
 
