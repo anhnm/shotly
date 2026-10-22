@@ -77,27 +77,6 @@ Project Xcode (`Shotly.xcodeproj`) được sinh từ `project.yml`; sau khi th�
 | `make lint` | Xem cảnh báo của trình biên dịch |
 | `make clean` | Xoá file build |
 | `make version` | In phiên bản hiện tại |
-| `make ship V=2.0.1 NOTES="..."` | Phát hành bản mới (giống `./release.sh`) |
-
-## Phát hành bản cập nhật
-
-App đọc `https://github.com/<repo>/releases/latest/download/version.json` lúc mở và mỗi 6 giờ.
-Repo lấy từ khoá `ShotlyUpdateRepo` trong `Resources/Info.plist` (repo phải public).
-
-1. Một lần trên máy phát hành: tạo chứng chỉ ký cố định, để người dùng không phải cấp lại quyền sau mỗi lần cập nhật.
-   ```bash
-   ./tools/create-signing-cert.sh
-   ```
-   Sao lưu thư mục `~/Documents/Shotly Signing` mà script tạo ra (không đưa lên Git).
-2. Mỗi lần phát hành:
-   ```bash
-   ./release.sh 2.0.1 "Ghi chú 1" "Ghi chú 2"           # bản thường
-   ./release.sh 2.0.2 "Sửa lỗi nghiêm trọng" --force     # bắt buộc mọi người cập nhật
-   ./release.sh 2.0.1 "Thử" --dry-run                    # chỉ build, không đăng
-   ```
-   Script tăng build number, build, ký, đóng gói `release/Shotly-<version>.dmg`, tạo `version.json`
-   rồi đăng cả hai lên GitHub Releases bằng `gh`.
-3. Commit phần đổi phiên bản: `git commit -am "Release 2.0.1" && git push`.
 
 ## Cấu trúc
 
