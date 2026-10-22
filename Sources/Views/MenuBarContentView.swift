@@ -97,24 +97,17 @@ struct MenuBarContentView: View {
 
             TrayDivider()
 
-            TrayFullWidthButton(title: "Show Welcome Guide", icon: "sparkles") {
-                dismissPopover()
-                OnboardingWindowController.shared.open()
-            }
-            .padding(.horizontal, 10)
-            .padding(.top, 4)
-            .padding(.bottom, 2)
-
-            TrayDivider()
-
             footerGrid
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
 
-            versionLabel
-                .padding(.bottom, 8)
+            TrayDivider()
+
+            versionRow
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
         }
-        .frame(width: 290)
+        .frame(width: 320)
     }
 
     // MARK: - Capture Grid
@@ -138,11 +131,11 @@ struct MenuBarContentView: View {
                 dismissAndRun(.window)
             }
 
-            TrayGridButton(title: "Pick Color", icon: "eyedropper") {
+            TrayGridButton(title: "Pick Color", icon: "eyedropper", shortcut: shortcutLabel(for: .colorPicker, default: .defaultColorPicker)) {
                 dismissAndRun(.colorPicker)
             }
 
-            TrayGridMenu(title: "Record", icon: "record.circle", menuItems: [
+            TrayGridMenu(title: "Record", icon: "record.circle", shortcut: shortcutLabel(for: .recording, default: .defaultRecording), menuItems: [
                 TrayMenuItem(title: "Full Screen", icon: "desktopcomputer") {
                     let screen = originScreen
                     dismissPopover()
@@ -215,11 +208,40 @@ struct MenuBarContentView: View {
 
     // MARK: - Version
 
-    private var versionLabel: some View {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
-        return Text("Version \(version)")
-            .font(.system(size: 10))
-            .foregroundStyle(.quaternary)
+    /// Version on the left; on the right, a one-click update check and its result.
+    private var versionRow: some View {
+        let updater = AppUpdater.shared
+        return HStack(spacing: 8) {
+            Text("Shotly \(updater.currentVersion)")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.secondary)
+
+            Spacer(minLength: 8)
+
+            switch updater.state {
+            case .checking:
+                HStack(spacing: 5) {
+                    ProgressView().controlSize(.mini)
+                    Text("Checking…")
+                }
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+            case .upToDate:
+                Label("Up to date", systemImage: "checkmark.circle.fill")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+            case .available, .downloading, .installing:
+                EmptyView()
+            default:
+                Button {
+                    Task { await updater.checkForUpdates(userInitiated: true) }
+                } label: {
+                    Text("Check for Updates")
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .buttonStyle(.link)
+            }
+        }
     }
 
     // MARK: - Actions
@@ -348,9 +370,7 @@ struct TrayGridButton: View {
                 Spacer(minLength: 2)
 
                 if let shortcut {
-                    Text(shortcut)
-                        .font(.system(size: 9, weight: .medium, design: .rounded))
-                        .foregroundStyle(.primary.opacity(0.25))
+                    ShortcutKeycaps(shortcut: shortcut, isHighlighted: isHovered)
                 }
             }
             .padding(.horizontal, 8)
@@ -366,20 +386,65 @@ struct TrayGridButton: View {
     }
 }
 
+// MARK: - Shortcut keycaps
+
+/// Shows a shortcut such as "⌘⇧4" as one small key per symbol, readable at a glance.
+struct ShortcutKeycaps: View {
+    let shortcut: String
+    var isHighlighted = false
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(Array(TrayShortcut.keys(in: shortcut).enumerated()), id: \.offset) { _, key in
+                Text(key)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.primary.opacity(isHighlighted ? 0.85 : 0.6))
+                    .frame(minWidth: 17, minHeight: 18)
+                    .padding(.horizontal, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(Color.primary.opacity(isHighlighted ? 0.14 : 0.09))
+                    )
+            }
+        }
+        .accessibilityLabel("Shortcut \(shortcut)")
+    }
+}
+
+enum TrayShortcut {
+    /// "⌘⇧4" → ["⌘", "⇧", "4"]; a trailing key name of several letters stays whole.
+    static func keys(in shortcut: String) -> [String] {
+        let modifiers: Set<Character> = ["⌘", "⇧", "⌥", "⌃"]
+        var keys: [String] = []
+        var rest = ""
+        for character in shortcut {
+            if modifiers.contains(character) { keys.append(String(character)) } else { rest.append(character) }
+        }
+        if !rest.isEmpty { keys.append(rest) }
+        return keys
+    }
+}
+
 // MARK: - Grid Menu (dropdown matching grid button style via NSMenu)
 
 struct TrayGridMenu: NSViewRepresentable {
     let title: String
     let icon: String
+    var shortcut: String? = nil
     let menuItems: [TrayMenuItem]
 
     func makeNSView(context: Context) -> TrayGridMenuButton {
         let button = TrayGridMenuButton(title: title, icon: icon, menuItems: menuItems)
+        button.shortcut = shortcut
         return button
     }
 
     func updateNSView(_ nsView: TrayGridMenuButton, context: Context) {
         nsView.menuItems = menuItems
+        if nsView.shortcut != shortcut {
+            nsView.shortcut = shortcut
+            nsView.needsDisplay = true
+        }
     }
 }
 
@@ -399,6 +464,7 @@ struct TrayMenuItem {
 
 final class TrayGridMenuButton: NSView {
     var menuItems: [TrayMenuItem]
+    var shortcut: String?
     private let titleText: String
     private let iconName: String
     private var isHovered = false
@@ -538,6 +604,27 @@ final class TrayGridMenuButton: NSView {
                 height: chevronSize.height
             )
             tinted.draw(in: chevronRect)
+        }
+
+        // Keycaps for the shortcut, drawn to match ShortcutKeycaps, left of the chevron.
+        if let shortcut {
+            let keyFont = NSFont.systemFont(ofSize: 11, weight: .semibold)
+            let roundedFont = keyFont.fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: 11) } ?? keyFont
+            let keyAttrs: [NSAttributedString.Key: Any] = [
+                .font: roundedFont,
+                .foregroundColor: NSColor.labelColor.withAlphaComponent(isHovered ? 0.85 : 0.6),
+            ]
+            let keys = TrayShortcut.keys(in: shortcut)
+            let widths = keys.map { max(17, ($0 as NSString).size(withAttributes: keyAttrs).width) + 4 }
+            var x = bounds.maxX - chevronWidth - 6 - widths.reduce(0, +) - CGFloat(max(0, keys.count - 1)) * 2
+            for (key, width) in zip(keys, widths) {
+                let capRect = NSRect(x: x, y: centerY - 9, width: width, height: 18)
+                NSColor.labelColor.withAlphaComponent(isHovered ? 0.14 : 0.09).setFill()
+                NSBezierPath(roundedRect: capRect, xRadius: 4, yRadius: 4).fill()
+                let size = (key as NSString).size(withAttributes: keyAttrs)
+                (key as NSString).draw(at: NSPoint(x: capRect.midX - size.width / 2, y: capRect.midY - size.height / 2), withAttributes: keyAttrs)
+                x += width + 2
+            }
         }
     }
 
