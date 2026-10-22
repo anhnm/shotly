@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Shottr-style editor**: flat single-row toolbar with tooltips and single-key shortcuts, zoom and pan (`Z`, `⌘0`, `⌘1`, pinch, `Space`-drag), color under the cursor (`Tab` to copy), image resize, and a floating options bar with a stroke-width slider and rectangle styles (rounded, square, dashed, filled)
+- **Faster editor**: flat single-row toolbar with tooltips and single-key shortcuts, zoom and pan (`Z`, `⌘0`, `⌘1`, pinch, `Space`-drag), color under the cursor (`Tab` to copy), image resize, and a floating options bar with a stroke-width slider and rectangle styles (rounded, square, dashed, filled)
 - **Capture preview at the cursor**: translucent card with Edit, Copy, Save, Copy text (OCR), Pin and Collage actions, each with a shortcut; hides when you click elsewhere
 - **Settings redesign**: icon tabs (General, Hotkeys, Capture, Backdrop, Recording, Watermark, History, About), two-column form, editor key reference, launch at login
 - **In-app updates** from GitHub Releases (`anhnm/shotly`) with checksum verification, optional required updates, and `release.sh` for publishing

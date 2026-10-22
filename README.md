@@ -6,7 +6,7 @@
 [![Website](https://img.shields.io/badge/web-shotly.anhnm.pro-42D396.svg)](https://shotly.anhnm.pro)
 
 App chụp và quay màn hình cho macOS, viết bằng Swift: nhẹ, nhanh, chạy trên menu bar.
-Chụp xong là chỉnh, chú thích, làm đẹp và chia sẻ ngay, với trình chỉnh sửa theo phong cách Shottr.
+Chụp xong là chỉnh, chú thích, làm đẹp và chia sẻ ngay, với trình chỉnh sửa thao tác nhanh bằng phím.
 
 ## Tính năng
 
