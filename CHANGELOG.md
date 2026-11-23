@@ -5,6 +5,16 @@ All notable changes to Shotly are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3] - 2026-11-23
+
+### Added
+
+- **AI with your own Gemini key** (Settings → AI). The key is kept in the Keychain and nothing is sent unless you pick an AI action
+- **OCR with Gemini**: reads any language and script and translates in the same step; falls back to on-device OCR and Apple Translation. 20 translation languages
+- **Blur sensitive info** (editor → ✦ AI): finds emails, phone numbers, card numbers, names, addresses, codes and keys and covers just the value. Only the recognised text is sent to Gemini, never the image
+- **Translate image** (editor → ✦ AI): replaces each line with its translation in the original colours, weight and alignment; editable, and one undo removes it all
+- **Scrolling capture** (⌘⇧5)
+
 ## [2.2.2] - 2026-10-22
 
 ### Changed

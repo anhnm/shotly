@@ -1,13 +1,15 @@
 {
-  "version": "2.2.2",
-  "build": 40,
+  "version": "2.3",
+  "build": 41,
   "minimumOS": "14.0",
-  "dmgUrl": "https://github.com/anhnm/shotly/releases/download/v2.2.2/Shotly-2.2.2.dmg",
-  "sha256": "ea6898b1c8dc575f3f7e27a1c0c146a5073a9bb84c52602bd8e2571ea327af1c",
-  "size": 1996719,
+  "dmgUrl": "https://github.com/anhnm/shotly/releases/download/v2.3/Shotly-2.3.dmg",
+  "sha256": "898a6ef3770a26427aa7c39c49f59f7a7ef81ca550f3420f9c6394a51315dac1",
+  "size": 2175073,
   "notes": [
-    "Thước đo: giữ phím 1 đo ngang, phím 2 đo dọc, bấm chuột để in thước",
-    "Không giữ phím thì bấm vào thước cũ để đổi màu, kéo hai đầu để chỉnh vị trí; thước dễ bấm trúng hơn"
+    "AI bằng Gemini key của anh/chị (Settings → AI): OCR đọc mọi ngôn ngữ và dịch luôn",
+    "Editor → ✦ AI: tự tìm và làm mờ thông tin nhạy cảm (email, SĐT, số thẻ, tên, địa chỉ, mã OTP, API key…)",
+    "Editor → ✦ AI: dịch đè lên ảnh, giữ màu nền, màu chữ, chữ đậm và căn giữa",
+    "Chụp cuộn trang (⌘⇧5)"
   ],
   "minBuild": 0
 }
