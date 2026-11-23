@@ -12,6 +12,16 @@ final class ShotlyDelegate: NSObject, NSApplicationDelegate {
         AppUpdater.shared.startAutomaticChecks()
         ScreenCapture.warmUpTextRecognition()
         AnalyticsService.trackAppLaunch()
+        if let i = CommandLine.arguments.firstIndex(of: "--record-scene"), CommandLine.arguments.count > i + 3 {
+            UIRecord.run(scene: CommandLine.arguments[i + 1], outputPath: CommandLine.arguments[i + 2], demoImagePath: CommandLine.arguments[i + 3]); return
+        }
+        if let i = CommandLine.arguments.firstIndex(of: "--export-ui"), CommandLine.arguments.count > i + 2 {
+            UIExport.run(outputPath: CommandLine.arguments[i + 1], demoImagePath: CommandLine.arguments[i + 2]); return
+        }
+        if CommandLine.arguments.contains("--scroll-self-test") { ScrollSelfTest.run(); return }
+        if let i = CommandLine.arguments.firstIndex(of: "--scroll-self-test-browser"), CommandLine.arguments.count > i + 2 {
+            ScrollSelfTest.runBrowser(app: CommandLine.arguments[i + 1], file: CommandLine.arguments[i + 2]); return
+        }
 
         if !AppPreferences.hasCompletedOnboarding {
             OnboardingWindowController.shared.open()

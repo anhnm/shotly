@@ -10,6 +10,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case recording = "Recording"
     case watermark = "Watermark"
     case history = "History"
+    case ai = "AI"
     case about = "About"
 
     var id: String { rawValue }
@@ -23,6 +24,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .recording: return "record.circle"
         case .watermark: return "seal"
         case .history: return "clock.arrow.circlepath"
+        case .ai: return "sparkles"
         case .about: return "info.circle"
         }
     }
@@ -79,6 +81,7 @@ struct PreferencesView: View {
         case .recording: RecordingSettingsTab()
         case .watermark: WatermarkSettingsTab()
         case .history: HistorySettingsTab()
+        case .ai: AISettingsTab()
         case .about: AboutTab()
         }
     }
@@ -104,7 +107,7 @@ private struct SettingsTabBar: View {
                             .font(.system(size: 11))
                     }
                     .foregroundStyle(isSelected ? Color.accentColor : Color.primary.opacity(0.75))
-                    .frame(width: 70, height: 50)
+                    .frame(width: 64, height: 50)
                     .background(
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
                             .fill(isSelected ? Color.primary.opacity(0.1) : .clear)
@@ -779,6 +782,7 @@ struct HotkeysSettingsTab: View {
         ("Capture area", .region),
         ("Capture fullscreen", .fullscreen),
         ("Capture window", .window),
+        ("Scrolling capture", .scrollCapture),
         ("Record screen", .recording),
         ("Recognize text (OCR)", .ocr),
         ("Pick color", .colorPicker),
@@ -1204,6 +1208,7 @@ struct ShortcutRow: View {
         case .ocr: return .defaultOCR
         case .colorPicker: return .defaultColorPicker
         case .recording: return .defaultRecording
+        case .scrollCapture: return .defaultScrollCapture
         }
     }
 }
@@ -1306,6 +1311,135 @@ final class ShortcutRecorderNSView: NSView {
 }
 
 // MARK: - History
+
+// MARK: - AI
+
+struct AISettingsTab: View {
+    @AppStorage("bs_geminiModel") private var model = ""
+    @AppStorage("bs_aiOCREnabled") private var aiOCREnabled = true
+    @AppStorage("bs_aiRedactionEnabled") private var aiRedactionEnabled = true
+    @State private var keyInput = ""
+    @State private var hasKey = GeminiKey.isSet
+    @State private var testState: TestState = .idle
+
+    private enum TestState: Equatable {
+        case idle, testing, passed
+        case failed(String)
+    }
+
+    var body: some View {
+        SettingsPage {
+            SettingsRow("Gemini API key") {
+                if hasKey {
+                    HStack(spacing: 8) {
+                        Label("Key saved in Keychain", systemImage: "checkmark.seal.fill")
+                            .foregroundStyle(.green)
+                        Button("Test") { test(key: GeminiKey.current ?? "") }
+                            .disabled(testState == .testing)
+                        Button("Remove", role: .destructive) {
+                            GeminiKey.remove()
+                            hasKey = false
+                            testState = .idle
+                        }
+                    }
+                } else {
+                    HStack(spacing: 8) {
+                        SecureField("Paste your key", text: $keyInput)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 230)
+                            .onSubmit(saveKey)
+                        Button("Save", action: saveKey)
+                            .disabled(keyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || testState == .testing)
+                    }
+                    Link("Get a free key from Google AI Studio", destination: URL(string: "https://aistudio.google.com/apikey")!)
+                        .font(.caption)
+                }
+                testMessage
+            }
+
+            SettingsRow("Model") {
+                TextField(GeminiService.defaultModel, text: $model)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 230)
+                SettingsNote("Leave empty for \(GeminiService.defaultModel), which follows Google's latest fast model.")
+            }
+
+            SettingsSeparator()
+
+            SettingsRow("OCR") {
+                Toggle("Read and translate OCR text with Gemini", isOn: $aiOCREnabled)
+                    .toggleStyle(.checkbox)
+                SettingsNote("Reads any language and script, keeps tables and code laid out, and translates in the same step. The selected area is sent to Gemini. If Gemini fails, Shotly reads the text on this Mac.")
+            }
+
+            SettingsRow("Sensitive info") {
+                Toggle("Use Gemini to find sensitive info", isOn: $aiRedactionEnabled)
+                    .toggleStyle(.checkbox)
+                SettingsNote("In the editor's AI menu. Text is read on this Mac and only the text is sent, never the image. Also finds names, addresses, codes and keys.")
+            }
+
+            SettingsRow("Translate image") {
+                SettingsNote("In the editor's AI menu: replaces the text in a screenshot with its translation. The image is sent to Gemini.")
+            }
+
+            SettingsSeparator()
+
+            SettingsRow("Privacy") {
+                SettingsNote("Nothing is sent until you choose an AI action. Requests go straight from this Mac to Google with your key. On Google's free tier, Google may use what you send to improve its products; don't send anything you wouldn't share.")
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .geminiKeyChanged)) { _ in
+            hasKey = GeminiKey.isSet
+        }
+    }
+
+    @ViewBuilder
+    private var testMessage: some View {
+        switch testState {
+        case .idle:
+            EmptyView()
+        case .testing:
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.small)
+                Text("Checking the key…").font(.caption).foregroundStyle(.secondary)
+            }
+        case .passed:
+            Label("Gemini answered. AI features are ready.", systemImage: "checkmark.circle")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        case .failed(let message):
+            Label(message, systemImage: "exclamationmark.triangle")
+                .font(.caption)
+                .foregroundStyle(.red)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// Checks the key with Gemini before keeping it.
+    private func saveKey() {
+        let key = keyInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else { return }
+        test(key: key) {
+            GeminiKey.save(key)
+            keyInput = ""
+            hasKey = true
+        }
+    }
+
+    private func test(key: String, onSuccess: (() -> Void)? = nil) {
+        testState = .testing
+        let modelName = model.trimmingCharacters(in: .whitespacesAndNewlines)
+        Task { @MainActor in
+            do {
+                try await GeminiService.test(key: key, model: modelName.isEmpty ? GeminiService.defaultModel : modelName)
+                onSuccess?()
+                testState = .passed
+            } catch {
+                testState = .failed(error.localizedDescription)
+            }
+        }
+    }
+}
 
 struct HistorySettingsTab: View {
     private enum Kind: String, CaseIterable, Identifiable {

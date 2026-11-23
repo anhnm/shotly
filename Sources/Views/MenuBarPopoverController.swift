@@ -7,6 +7,14 @@ final class MenuBarPopoverController: NSObject {
 
     private var statusItem: NSStatusItem?
     private var panel: NSPanel?
+    /// Shows the menu panel in the middle of the screen without the status item, for the UI export.
+    func showDetachedForExport() -> NSPanel? {
+        if panel == nil { createPanel() }
+        panel?.center()
+        panel?.alphaValue = 1
+        panel?.orderFrontRegardless()
+        return panel
+    }
     private(set) var isOpen = false
     private var eventMonitor: Any?
 
@@ -37,7 +45,7 @@ final class MenuBarPopoverController: NSObject {
         }
     }
 
-    private func openPopover() {
+    func openPopover() {
         guard let button = statusItem?.button,
               let buttonWindow = button.window else { return }
 

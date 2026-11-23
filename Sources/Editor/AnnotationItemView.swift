@@ -487,7 +487,7 @@ private struct AnnotationTextItemView: View {
             text: text,
             font: item.resolvedFont(size: fontSize),
             textColor: item.swatch.nsColor,
-            shadow: AnnotationTextMetrics.textShadow,
+            shadow: AnnotationTextMetrics.shadow(for: item),
             isUnderline: item.isUnderline,
             alignment: item.textAlignment,
             isEditing: isEditing,

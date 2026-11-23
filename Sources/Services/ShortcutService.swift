@@ -43,6 +43,7 @@ final class ShortcutService {
         static let defaultOCR = Shortcut(keyCode: UInt32(kVK_ANSI_O), modifiers: UInt32(cmdKey | shiftKey), enabled: true)
         static let defaultColorPicker = Shortcut(keyCode: UInt32(kVK_ANSI_C), modifiers: UInt32(cmdKey | shiftKey), enabled: true)
         static let defaultRecording = Shortcut(keyCode: UInt32(kVK_ANSI_2), modifiers: UInt32(cmdKey | shiftKey), enabled: true)
+        static let defaultScrollCapture = Shortcut(keyCode: UInt32(kVK_ANSI_5), modifiers: UInt32(cmdKey | shiftKey), enabled: true)
 
         private static func keyName(for code: UInt32) -> String {
             let names: [UInt32: String] = [
@@ -68,6 +69,7 @@ final class ShortcutService {
         case ocr = 4
         case colorPicker = 5
         case recording = 6
+        case scrollCapture = 7
     }
 
     // MARK: - Registration (CGEvent tap — intercepts system shortcuts)
@@ -113,6 +115,7 @@ final class ShortcutService {
             (.ocr, service.loadShortcut(for: .ocr) ?? .defaultOCR),
             (.colorPicker, service.loadShortcut(for: .colorPicker) ?? .defaultColorPicker),
             (.recording, service.loadShortcut(for: .recording) ?? .defaultRecording),
+            (.scrollCapture, service.loadShortcut(for: .scrollCapture) ?? .defaultScrollCapture),
         ]
     }
 

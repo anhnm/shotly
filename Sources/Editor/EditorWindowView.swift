@@ -6,6 +6,7 @@ struct EditorWindowView: View {
     @State private var model = EditorModel()
     @State private var inspectorPanel: EditorInspectorPanel?
     @State private var showingWatermarkPopover = false
+    @State private var showingAIPopover = false
     @State private var isConfirmingDelete = false
     @Environment(\.dismiss) private var dismiss
 
@@ -197,6 +198,14 @@ struct EditorWindowView: View {
                 performEditorAction(.metadata)
             }
             .disabled(model.captureMetadata == nil || model.collageState != nil)
+
+            EditorToolbarButton(title: "AI", systemImage: "sparkles", isSelected: showingAIPopover) {
+                showingAIPopover.toggle()
+            }
+            .disabled(model.collageState != nil || model.sourceImage == nil)
+            .popover(isPresented: $showingAIPopover, arrowEdge: .bottom) {
+                EditorAIPanel(model: model)
+            }
 
         Spacer(minLength: 16)
 
@@ -514,6 +523,137 @@ struct EditorWindowView: View {
         }
         .padding(4)
         .frame(width: 180)
+    }
+}
+
+/// AI actions: blur sensitive info, and translate the image in place.
+private struct EditorAIPanel: View {
+    @Bindable var model: EditorModel
+    @AppStorage("bs_ocrTranslationTargetLanguage") private var targetLanguageRaw = OCRTranslationLanguage.vietnamese.rawValue
+    @State private var hasKey = GeminiService.isAvailable
+    @State private var running: Action?
+    @State private var outcome: (Action, AIActionOutcome)?
+
+    private enum Action { case redact, translate }
+
+    private var targetLanguage: OCRTranslationLanguage {
+        OCRTranslationLanguage(rawValue: targetLanguageRaw) ?? .vietnamese
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            section(
+                title: "Blur sensitive info",
+                detail: hasKey && AppPreferences.aiRedactionEnabled
+                    ? "Emails, phone numbers, names, addresses, codes and keys. Text is read on this Mac; only the text is sent to Gemini."
+                    : "Emails, phone numbers and card numbers, found on this Mac."
+            ) {
+                Button {
+                    run(.redact) { await model.redactSensitiveInfo() }
+                } label: {
+                    label("Find and blur", running: running == .redact)
+                }
+                .disabled(running != nil)
+            }
+            message(for: .redact)
+
+            Divider()
+
+            section(
+                title: "Translate image",
+                detail: "Replaces each line of text with its translation, matching the colours. Sends the image to Gemini."
+            ) {
+                HStack(spacing: 8) {
+                    Picker("Translate to", selection: $targetLanguageRaw) {
+                        ForEach(OCRTranslationLanguage.allCases) { language in
+                            Text(language.label).tag(language.rawValue)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 150)
+
+                    Button {
+                        let target = targetLanguage
+                        run(.translate) { await model.translateImage(to: target) }
+                    } label: {
+                        label("Translate", running: running == .translate)
+                    }
+                    .disabled(running != nil || !hasKey)
+                }
+            }
+            message(for: .translate)
+
+            if !hasKey {
+                HStack(spacing: 6) {
+                    Image(systemName: "key")
+                        .foregroundStyle(.secondary)
+                    Text("Translation needs a Gemini API key.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 4)
+                    Button("Add Key…") {
+                        SettingsWindowController.shared.open(section: .ai)
+                    }
+                    .controlSize(.small)
+                }
+            }
+        }
+        .padding(14)
+        .frame(width: 330)
+        .onReceive(NotificationCenter.default.publisher(for: .geminiKeyChanged)) { _ in
+            hasKey = GeminiService.isAvailable
+        }
+    }
+
+    private func section<Content: View>(title: String, detail: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+            Text(detail)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            content()
+                .padding(.top, 2)
+        }
+    }
+
+    private func label(_ title: String, running: Bool) -> some View {
+        HStack(spacing: 6) {
+            if running {
+                ProgressView()
+                    .controlSize(.small)
+            }
+            Text(running ? "Working…" : title)
+        }
+    }
+
+    @ViewBuilder
+    private func message(for action: Action) -> some View {
+        if let (finished, result) = outcome, finished == action {
+            switch result {
+            case .success(let text):
+                Label(text, systemImage: "checkmark.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            case .failure(let text):
+                Label(text, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func run(_ action: Action, _ work: @escaping @MainActor () async -> AIActionOutcome) {
+        running = action
+        outcome = nil
+        Task { @MainActor in
+            let result = await work()
+            outcome = (action, result)
+            running = nil
+        }
     }
 }
 

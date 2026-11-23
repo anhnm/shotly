@@ -106,6 +106,16 @@ enum AnnotationTextMetrics {
         return shadow
     }
 
+    static var noShadow: NSShadow {
+        let shadow = NSShadow()
+        shadow.shadowColor = .clear
+        return shadow
+    }
+
+    static func shadow(for item: AnnotationItem) -> NSShadow {
+        item.textHasShadow ? textShadow : noShadow
+    }
+
     static func viewFontSize(lineHeight: CGFloat, imageFrameHeight: CGFloat) -> CGFloat {
         max(lineHeight * imageFrameHeight * fontScale, minimumFontSize)
     }
@@ -496,6 +506,8 @@ struct AnnotationItem: Identifiable, Equatable {
     var ellipseStyle: AnnotationEllipseStyle
     var arrowStyle: AnnotationArrowStyle
     var arrowDoubleHeaded: Bool
+    /// Text drawn over the image itself (a translation in place) has no drop shadow.
+    var textHasShadow: Bool
 
     init(
         id: UUID = UUID(),
@@ -518,7 +530,8 @@ struct AnnotationItem: Identifiable, Equatable {
         magnification: CGFloat = AnnotationMagnifierMetrics.defaultMagnification,
         ellipseStyle: AnnotationEllipseStyle = .outline,
         arrowStyle: AnnotationArrowStyle = .line,
-        arrowDoubleHeaded: Bool = false
+        arrowDoubleHeaded: Bool = false,
+        textHasShadow: Bool = true
     ) {
         self.id = id
         self.tool = tool
@@ -541,6 +554,7 @@ struct AnnotationItem: Identifiable, Equatable {
         self.ellipseStyle = ellipseStyle
         self.arrowStyle = arrowStyle
         self.arrowDoubleHeaded = arrowDoubleHeaded
+        self.textHasShadow = textHasShadow
     }
 
     /// A copy with a new identity, for duplicating.

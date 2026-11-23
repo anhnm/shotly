@@ -406,7 +406,7 @@ enum AnnotationDrawing {
             .font: font,
             .foregroundColor: item.swatch.nsColor,
             .paragraphStyle: paragraphStyle,
-            .shadow: AnnotationTextMetrics.textShadow
+            .shadow: AnnotationTextMetrics.shadow(for: item)
         ]
         if item.isUnderline {
             attributes[.underlineStyle] = NSUnderlineStyle.single.rawValue

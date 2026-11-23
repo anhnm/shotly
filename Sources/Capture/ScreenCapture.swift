@@ -84,6 +84,16 @@ final class ScreenCapture {
         return await writeTemporaryPNG(cropped)
     }
 
+    // MARK: - Scrolling
+
+    func captureScrolling() async throws -> URL? {
+        guard !isCapturing else { return nil }
+        isCapturing = true
+        defer { isCapturing = false }
+        guard let image = try await ScrollCapture.shared.capture() else { return nil }
+        return await writeTemporaryPNG(image)
+    }
+
     // MARK: - Window (CLI screencapture -w)
 
     func captureWindow(includeShadow: Bool = false) async throws -> URL? {
@@ -116,15 +126,16 @@ final class ScreenCapture {
     // MARK: - OCR Region
 
     func captureAndOCR() async throws -> String? {
+        guard let cgImage = try await captureRegionImage() else { return nil }
+        return try await recognizeContent(in: cgImage)
+    }
+
+    /// A region the user selects, as an image, with no file left behind.
+    func captureRegionImage() async throws -> CGImage? {
         guard let url = try await captureRegion() else { return nil }
         defer { try? FileManager.default.removeItem(at: url) }
-
-        guard let image = NSImage(contentsOf: url),
-              let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
-            return nil
-        }
-
-        return try await recognizeContent(in: cgImage)
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+        return CGImageSourceCreateImageAtIndex(source, 0, nil)
     }
 
     /// Text (and QR/barcode payloads) found in `image`.

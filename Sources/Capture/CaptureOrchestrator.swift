@@ -50,6 +50,8 @@ final class CaptureOrchestrator {
         case .window:
             AnalyticsService.track(.captureWindow)
             await captureAndProcess { try await ScreenCapture.shared.captureWindow() }
+        case .scrollCapture:
+            await captureAndProcess { try await ScreenCapture.shared.captureScrolling() }
         case .ocr:
             await performOCR()
         case .colorPicker:
@@ -128,6 +130,10 @@ final class CaptureOrchestrator {
     }
 
     private func performOCR() async {
+        if AppPreferences.aiOCREnabled, GeminiService.isAvailable {
+            await performGeminiOCR()
+            return
+        }
         do {
             guard let text = try await ScreenCapture.shared.captureAndOCR(),
                   !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
@@ -147,6 +153,42 @@ final class CaptureOrchestrator {
                     on: captureScreen
                 )
             }
+        } catch {
+            print("OCR failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// OCR read by Gemini, which handles any language and script. Falls back to on-device OCR on error.
+    private func performGeminiOCR() async {
+        do {
+            guard let image = try await ScreenCapture.shared.captureRegionImage() else { return }
+            ScreenCapture.shared.playShutterSound()
+            AnalyticsService.track(.ocrCompleted)
+            if AppPreferences.ocrTranslationEnabled, #available(macOS 15.0, *) {
+                // The window reads the text, copies it and translates it.
+                OCRTranslationWindow.shared.show(image: image, on: captureScreen)
+                return
+            }
+            OCRTranslationWindow.shared.dismiss()
+            let text: String
+            var usedFallback = false
+            do {
+                text = try await GeminiService.recognize(image, translatingTo: nil).text
+            } catch {
+                print("Gemini OCR failed: \(error.localizedDescription)")
+                text = try await ScreenCapture.shared.recognizeContent(in: image)
+                usedFallback = true
+            }
+            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            pasteboard.setString(text, forType: .string)
+            ToastWindow.shared.show(
+                title: "OCR copied",
+                message: usedFallback ? "Gemini was unavailable; read on this Mac" : "Recognized text copied to clipboard",
+                systemIcon: "doc.on.clipboard",
+                on: captureScreen
+            )
         } catch {
             print("OCR failed: \(error.localizedDescription)")
         }

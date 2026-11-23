@@ -69,9 +69,12 @@ struct MenuBarContentView: View {
 
             TrayDivider()
 
-            utilityGrid
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
+            VStack(spacing: 6) {
+                utilityGrid
+                recentRow
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
 
             if case .available(let manifest) = AppUpdater.shared.state {
                 TrayDivider()
@@ -131,8 +134,8 @@ struct MenuBarContentView: View {
                 dismissAndRun(.window)
             }
 
-            TrayGridButton(title: "Pick Color", icon: "eyedropper", shortcut: shortcutLabel(for: .colorPicker, default: .defaultColorPicker)) {
-                dismissAndRun(.colorPicker)
+            TrayGridButton(title: "Scrolling", icon: "arrow.up.and.down.text.horizontal", shortcut: shortcutLabel(for: .scrollCapture, default: .defaultScrollCapture)) {
+                dismissAndRun(.scrollCapture)
             }
 
             TrayGridMenu(title: "Record", icon: "record.circle", shortcut: shortcutLabel(for: .recording, default: .defaultRecording), menuItems: [
@@ -154,10 +157,8 @@ struct MenuBarContentView: View {
                 },
             ])
 
-            TrayGridButton(title: "Editor", icon: "square.and.pencil") {
-                let screen = originScreen
-                dismissPopover()
-                EditorWindowController.shared.open(url: nil, on: screen)
+            TrayGridButton(title: "OCR", icon: "doc.text.viewfinder", shortcut: shortcutLabel(for: .ocr, default: .defaultOCR)) {
+                dismissAndRun(.ocr)
             }
         }
     }
@@ -179,12 +180,22 @@ struct MenuBarContentView: View {
         ]
 
         return LazyVGrid(columns: columns, spacing: 6) {
-            TrayGridButton(title: "OCR", icon: "doc.text.viewfinder", shortcut: shortcutLabel(for: .ocr, default: .defaultOCR)) {
-                dismissAndRun(.ocr)
+            TrayGridButton(title: "Pick Color", icon: "eyedropper", shortcut: shortcutLabel(for: .colorPicker, default: .defaultColorPicker)) {
+                dismissAndRun(.colorPicker)
             }
 
-            TrayGridMenu(title: "Recent", icon: "clock.arrow.circlepath", menuItems: recentMenuItems())
+            TrayGridButton(title: "Editor", icon: "square.and.pencil") {
+                let screen = originScreen
+                dismissPopover()
+                EditorWindowController.shared.open(url: nil, on: screen)
+            }
+
         }
+    }
+
+    /// Recent captures get their own full-width row under the utilities.
+    private var recentRow: some View {
+        TrayGridMenu(title: "Recent", icon: "clock.arrow.circlepath", menuItems: recentMenuItems())
     }
 
     // MARK: - Footer

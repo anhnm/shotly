@@ -114,6 +114,8 @@ final class PreviewOverlay {
     private(set) var thumbnails: [URL: NSImage] = [:]
     private var aspectRatios: [URL: CGFloat] = [:]
     private var panel: NSPanel?
+    /// The open preview panel, for the UI export.
+    var openPanel: NSPanel? { panel }
     private var dismissTask: Task<Void, Never>?
     private var targetScreen: NSScreen?
     private var outsideClickMonitors: [Any] = []

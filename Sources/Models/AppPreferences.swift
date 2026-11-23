@@ -188,6 +188,25 @@ enum AppPreferences {
         set { UserDefaults.standard.set(newValue, forKey: ocrTranslationEnabledKey) }
     }
 
+    // MARK: - AI (Gemini)
+    /// Gemini model name; empty means `GeminiService.defaultModel`.
+    static var geminiModel: String {
+        get { UserDefaults.standard.string(forKey: "bs_geminiModel") ?? "" }
+        set { UserDefaults.standard.set(newValue, forKey: "bs_geminiModel") }
+    }
+
+    /// Read OCR text and translate it with Gemini instead of on-device Vision and Apple Translation.
+    static var aiOCREnabled: Bool {
+        get { UserDefaults.standard.object(forKey: "bs_aiOCREnabled") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "bs_aiOCREnabled") }
+    }
+
+    /// Ask Gemini which recognised text is sensitive when finding info to redact in the editor.
+    static var aiRedactionEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: "bs_aiRedactionEnabled") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "bs_aiRedactionEnabled") }
+    }
+
     static var ocrTranslationTargetLanguage: OCRTranslationLanguage {
         get {
             guard let raw = UserDefaults.standard.string(forKey: ocrTranslationTargetLanguageKey),
@@ -346,23 +365,54 @@ enum OCRTranslationLanguage: String, CaseIterable, Identifiable {
     case korean = "ko"
     case simplifiedChinese = "zh-Hans"
     case traditionalChinese = "zh-Hant"
+    case thai = "th"
+    case indonesian = "id"
+    case hindi = "hi"
+    case arabic = "ar"
+    case russian = "ru"
+    case ukrainian = "uk"
+    case turkish = "tr"
     case french = "fr"
     case german = "de"
     case spanish = "es"
+    case portuguese = "pt"
+    case italian = "it"
+    case dutch = "nl"
+    case polish = "pl"
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
+        case .simplifiedChinese: return "Chinese (Simplified)"
+        case .traditionalChinese: return "Chinese (Traditional)"
+        default: return englishName
+        }
+    }
+
+    /// The name used in prompts.
+    var englishName: String {
+        switch self {
         case .vietnamese: return "Vietnamese"
         case .english: return "English"
         case .japanese: return "Japanese"
         case .korean: return "Korean"
-        case .simplifiedChinese: return "Chinese (Simplified)"
-        case .traditionalChinese: return "Chinese (Traditional)"
+        case .simplifiedChinese: return "Simplified Chinese"
+        case .traditionalChinese: return "Traditional Chinese"
+        case .thai: return "Thai"
+        case .indonesian: return "Indonesian"
+        case .hindi: return "Hindi"
+        case .arabic: return "Arabic"
+        case .russian: return "Russian"
+        case .ukrainian: return "Ukrainian"
+        case .turkish: return "Turkish"
         case .french: return "French"
         case .german: return "German"
         case .spanish: return "Spanish"
+        case .portuguese: return "Portuguese"
+        case .italian: return "Italian"
+        case .dutch: return "Dutch"
+        case .polish: return "Polish"
         }
     }
 
